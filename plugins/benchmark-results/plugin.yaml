@@ -1,0 +1,12 @@
+manifest_version: 1
+name: benchmark-results
+version: 0.1.0
+author: tyler-jewell
+kind: standalone
+description: >-
+  Hermes dashboard plugin. Runs EleutherAI lm-evaluation-harness against a
+  local Ollama model (HumanEval, MBPP, …) and shows normalized pass@1 / score
+  results in a "Benchmarks" tab. Includes a Bun runner that writes results the
+  dashboard serves.
+provides_tools: []
+provides_hooks: []

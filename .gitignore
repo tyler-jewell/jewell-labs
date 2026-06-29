@@ -1,0 +1,8 @@
+# Local, machine-specific, or generated — never committed
+config.yaml            # per-machine host config (use config.yaml.example as the template)
+**/data/run-*.json     # generated benchmark results (embed local paths)
+**/data/raw/           # raw harness output
+__pycache__/
+*.pyc
+*.local
+.DS_Store

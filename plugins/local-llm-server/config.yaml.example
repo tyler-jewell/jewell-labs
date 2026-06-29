@@ -1,0 +1,38 @@
+# Local LLM Server — host configuration
+# ---------------------------------------------------------------------------
+# Copied to config.yaml on install (`hermes plugins install` auto-copies
+# *.example files). Edit config.yaml to add your own hosts; it is gitignored
+# so your machine names / SSH aliases are never committed.
+#
+# Each host describes one Ollama server and how to read its GPU + logs.
+#   kind: local   -> metrics gathered on the machine running the dashboard
+#   kind: ssh     -> metrics gathered over SSH (passwordless key auth; use a
+#                    ~/.ssh/config alias, never a raw IP or secret)
+#
+# GPU backend is auto-detected per host:
+#   macOS            -> Apple Metal via `ioreg` (no sudo needed)
+#   NVIDIA Jetson    -> `tegrastats` (GR3D GPU%, temps, power)
+#   other NVIDIA     -> `nvidia-smi`
+#
+# log.type:
+#   auto       -> detect a Homebrew/file log or journalctl automatically
+#   file       -> read `path` (incremental byte-offset tail)
+#   journalctl -> read systemd unit `unit` (incremental --after-cursor)
+# ---------------------------------------------------------------------------
+
+hosts:
+  - name: local
+    kind: local
+    ollama_url: http://localhost:11434
+    log:
+      type: auto
+
+  # Example: a second Ollama server reached over SSH (e.g. an NVIDIA Jetson).
+  # Uncomment and set `ssh` to a Host alias defined in your ~/.ssh/config.
+  # - name: jetson
+  #   kind: ssh
+  #   ssh: jetson
+  #   ollama_url: http://localhost:11434
+  #   log:
+  #     type: journalctl
+  #     unit: ollama
