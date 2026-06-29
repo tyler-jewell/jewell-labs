@@ -1,7 +1,7 @@
 ---
 name: extending-hermes-dashboard
 description: Build, test & install a Hermes dashboard plugin.
-version: 1.0.0
+version: 1.0.1
 license: MIT
 author: tyler-jewell
 platforms: [linux, macos, windows]
