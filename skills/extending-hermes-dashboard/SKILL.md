@@ -1,7 +1,7 @@
 ---
 name: extending-hermes-dashboard
 description: Build, test & install a Hermes dashboard plugin.
-version: 1.0.1
+version: 1.0.2
 license: MIT
 author: tyler-jewell
 platforms: [linux, macos, windows]
@@ -27,13 +27,13 @@ Use this when you want to surface live data or controls in the Hermes dashboard
 
 ## Worked examples (start here)
 
-Browse the example plugins in the companion repository
-**`tyler-jewell/jewell-labs`** under its `plugins/` directory:
+Browse these example plugin repos (each a root-level Hermes plugin, so native
+`hermes plugins update` works):
 
-| Example plugin | Demonstrates |
-|----------------|--------------|
-| `plugins/local-llm-server`  | Multi-host metrics, **config-driven hosts** (`config.yaml.example`), host **discovery**, an incremental **streaming log** endpoint — the gold standard for machine-agnostic design. |
-| `plugins/benchmark-results` | Serving data files from a `data/` directory, plus a companion runner script. |
+| Example repo | Demonstrates |
+|--------------|--------------|
+| `tyler-jewell/hermes-plugin-local-llm-server`  | Multi-host metrics, **config-driven hosts** (`config.yaml.example`), host **discovery**, an incremental **streaming log** endpoint — the gold standard for machine-agnostic design. |
+| `tyler-jewell/hermes-plugin-benchmark-results` | Serving data files from a `data/` directory, plus a companion runner script. |
 
 Read those two before writing your own — copy their idioms rather than
 inventing new ones.
