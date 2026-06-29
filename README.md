@@ -1,49 +1,38 @@
 # jewell-labs
 
-Installable [Hermes](https://github.com/) assets — dashboard **plugins** and
-**skills** — that you can pull directly with the `hermes` CLI. Each asset lives
-in a typed top-level directory and installs by subpath.
+Installable [Hermes](https://github.com/) **skills**, pulled directly with the
+`hermes` CLI. Each skill is a directory containing a `SKILL.md` (plus any helper
+scripts under `scripts/`).
 
-## Plugins
-
-Hermes dashboard plugins (UI tab + backend API). Install any by subpath:
+## Install a skill
 
 ```sh
-hermes plugins install tyler-jewell/jewell-labs/plugins/<name> --enable
-hermes dashboard
-```
-
-| Plugin | Tab | What it does |
-|--------|-----|--------------|
-| [`local-llm-server`](plugins/local-llm-server) | Local LLM Server | GPU metrics for your local Ollama servers (Apple Metal / NVIDIA / Jetson) + live Ollama API-call & token-rate stream. Multi-host, config-driven, with host discovery. |
-| [`benchmark-results`](plugins/benchmark-results) | Benchmarks | Runs lm-evaluation-harness against local Ollama models and charts pass@1 / scores. |
-
-```sh
-hermes plugins install tyler-jewell/jewell-labs/plugins/local-llm-server --enable
-hermes plugins install tyler-jewell/jewell-labs/plugins/benchmark-results --enable
-hermes plugins list
-```
-
-Plugins are **host- and codebase-agnostic** — no machine names, IPs, or secrets
-are committed. Host-specific settings live in a per-plugin `config.yaml`
-(created from `config.yaml.example` on install) which is gitignored.
-
-## Skills
-
-Hermes skills (see [`skills/`](skills)):
-
-```sh
-hermes skills tap add tyler-jewell/jewell-labs          # browse/search all skills here
 hermes skills install tyler-jewell/jewell-labs/skills/<name>
 ```
 
-## Layout
+## Or tap the whole repo as a skill source
 
+```sh
+hermes skills tap add tyler-jewell/jewell-labs
+hermes skills search <query>      # then: hermes skills install <name>
 ```
-jewell-labs/
-  plugins/<name>/   # hermes plugins install tyler-jewell/jewell-labs/plugins/<name>
-  skills/<name>/    # hermes skills install  tyler-jewell/jewell-labs/skills/<name>
-```
+
+Skills stay current via `hermes skills check` → `hermes skills update` (no
+`.git` checkout needed — they refetch by identifier).
+
+## Skills
+
+| Skill | What it does |
+|-------|--------------|
+| [`extending-hermes-dashboard`](skills/extending-hermes-dashboard) | Step-by-step guide + scaffold for building, testing, and installing a Hermes dashboard plugin. |
+
+## Plugins
+
+Hermes **plugins** live in their own repos (one per plugin, plugin at the repo
+root) so native `hermes plugins update` (`git pull`) keeps them current:
+
+- **local-llm-server** — `hermes plugins install tyler-jewell/hermes-plugin-local-llm-server --enable`
+- **benchmark-results** — `hermes plugins install tyler-jewell/hermes-plugin-benchmark-results --enable`
 
 ## License
 
