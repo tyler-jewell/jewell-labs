@@ -36,7 +36,7 @@ cat > "$DIR/dashboard/plugin_api.py" <<'PY'
 
 Keep it machine-agnostic: use Path.home() for files, read any host/machine
 settings from ../config.yaml (default to localhost when absent), never hardcode
-hosts/IPs/secrets.
+machine-specific values.
 """
 from pathlib import Path
 from fastapi import APIRouter
@@ -101,7 +101,7 @@ PY
 
 cat > "$DIR/config.yaml.example" <<'YAML'
 # Per-machine settings (auto-copied to config.yaml on install; config.yaml is
-# gitignored). Keep hosts/IPs/secrets OUT of the repo — reference ~/.ssh/config
+# gitignored). Keep machine-specific values OUT of the repo —
 # aliases here instead. Delete this file if your plugin needs no config.
 hosts:
   - name: local
