@@ -174,10 +174,20 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
   one-line templates; quick-eval.sh = those + core + 4 category reps: 20
   cases, 1m46s both models, 18/20 + 20/20 — red exactly on the two known
   items. Committed with this change.)*
-- [ ] **T10 — Starter-pack export/import.** A pack IS a compacted template
+- [x] **T10 — Starter-pack export/import.** A pack IS a compacted template
   file. Document share/import (copy the file + `./agent new`) in README.
   Explicit non-goal: marketplace infrastructure. *Accept:* a pack exported
   from this repo imports and evals clean in a scratch dir elsewhere.
+  *(2026-07-10: README "Starter packs" section documents export
+  (compact + cp) and import (new + eval). Proof: a live sentiment-json
+  instance was called, compacted to a 1-line pack, copied to a scratch dir
+  outside the repo holding only the `agent` script; after one bootstrap
+  CONFIG call there, `new` + a live call answered and the pack evaled
+  4/4 + 4/4 + 4/4 across all three models. The proof exposed a mkdir race
+  (call stamps runs/.lastuse before ensure creates runs/ when the server is
+  already healthy) — fixed by moving mkdir before ensure's early return;
+  re-proof in a second fresh scratch dir ran clean. Committed with this
+  change.)*
 
 ## Current baseline (reproduce before starting)
 

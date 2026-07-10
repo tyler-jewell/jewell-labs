@@ -46,8 +46,8 @@ cfg() { printf '%s' "$CONF" | jq -r "$1"; }
 healthy() { curl -sf -m 2 "$URL/health" >/dev/null 2>&1; }
 
 ensure() { # one router server for all models; at most one model in memory
-  healthy && return
   mkdir -p "$ROOT/runs"
+  healthy && return
   cfg '.models | to_entries[] |
     "[\(.key)]\nmodel = \(.value.path)\nctx-size = \(.value.ctx)\n"' \
     > "$ROOT/runs/preset.ini"
