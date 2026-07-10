@@ -15,6 +15,8 @@
 #   agent improve <agent-dir|template.jsonl> [-m model]   agent rewrites its
 #     own template (system prompt and/or CONFIG params); kept only if the
 #     score across all models strictly improves; its EVALS never change
+#   agent compact <agent-dir|template.jsonl>   re-author the template to the
+#     minimal seed: one EVALS call (preceded by a CONFIG call if one is set)
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 USE="$ROOT/runs/.lastuse"
 
@@ -201,6 +203,18 @@ evaluate() { # targets... (MODELS set)
     }'
 }
 
+compact() { # target: replay the extracted state into a minimal template
+  sys=$(sysprompt "$1") || exit 1
+  evals=$(cases "$1") || exit 1
+  mycfg=$(latest "$1" CONFIG)
+  out="$ROOT/runs/$(basename "$1" .jsonl).compact.jsonl"; rm -f "$out"
+  [ -z "$mycfg" ] || call "$out" "CONFIG $mycfg" "$MODEL" "$sys" >/dev/null
+  call "$out" "EVALS $evals" "$MODEL" "$sys" >/dev/null
+  dest=$1; case "$1" in *.jsonl) ;; *) dest=$1/template.history.jsonl ;; esac
+  mv "$out" "$dest" &&
+    echo "$(basename "$1" .jsonl): compacted to $(grep -c . "$dest") line(s)"
+}
+
 new() { # seeding is a fresh start: a new agent inherits no previous log
   mkdir -p "$1" && cp "$2" "$1/template.history.jsonl" &&
     rm -f "$1/history.jsonl"
@@ -227,5 +241,9 @@ improve)
   MODELS=$(cfg '.models | keys_unsorted | join(" ")')
   MODEL=${MODEL:-$(cfg .default_model)}
   improve "${1:?usage: agent improve <agent-dir|template.jsonl>}" ;;
-*) sed -n '2,17p' "$0" | cut -c3-; exit 1 ;;
+compact)
+  resolve "$1"
+  MODEL=${MODEL:-$(cfg .default_model)}
+  compact "${1:?usage: agent compact <agent-dir|template.jsonl>}" ;;
+*) sed -n '2,19p' "$0" | cut -c3-; exit 1 ;;
 esac

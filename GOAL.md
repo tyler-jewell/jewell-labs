@@ -61,11 +61,17 @@ dependency, deleting user data, or work not covered by any task below.
 Suggested order: T6 → T5 → T4 → T1 → T2 → T3 → T7 → T9 → T8 → T10, then
 re-run T2 (the fixpoint must cover the final template set after T8/T9).
 
-- [ ] **T1 — `compact` command.** Re-author a template to the minimum
+- [x] **T1 — `compact` command.** Re-author a template to the minimum
   history: one call carrying its current system prompt + EVALS (two calls
   when a CONFIG is present). *Accept:* a compacted template scores
   identically to its pre-compaction self on a fresh instance; compacted
   templates are ≤2 lines.
+  *(2026-07-10: `agent compact` replays extracted state as real calls —
+  CONFIG (if set) then EVALS, both carrying the current system prompt.
+  Core template: 3→2 lines, extracted EVALS/CONFIG/sysprompt byte-identical,
+  fresh-instance eval 3/3 + 3/3 both before and after. No-CONFIG branch on a
+  yes-no copy: 1 line, state semantically identical. Committed with this
+  change.)*
 - [ ] **T2 — `improve --all` fixpoint sweep.** Iterate `improve` over the
   core + every template until a full pass accepts zero rewrites. *Accept:*
   the sweep terminates; per-round accepted/rejected log recorded here.
