@@ -1,0 +1,121 @@
+#!/bin/sh
+# llama.cpp agents defined entirely by history. An agent is a folder holding
+# template.history.jsonl (seed messages - the only thing an agent may change
+# to improve itself) and history.jsonl (append-only log). Every line of both
+# is the raw verbose dump llama.cpp returns for one call. Nothing else exists:
+# the system prompt, and the agent's evals, are re-extracted live from the
+# union of those files on every use. Needs only sh, curl, jq, llama.cpp.
+#
+#   agent new  <agent-dir> <template.jsonl>      seed an agent from a template
+#   agent call <agent-dir|template.jsonl> "msg" [--system "..."] [-m model]
+#   agent eval <agent-dir|template.jsonl>... [-m model,model]    score matrix
+ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+CFG="$ROOT/config.yaml"
+
+cfg() { jq -r "$1" "$CFG"; }
+
+healthy() { curl -sf -m 2 "http://$(cfg .host):$1/health" >/dev/null 2>&1; }
+
+ensure() {
+  port=$(cfg ".models[\"$1\"].port")
+  healthy "$port" && return
+  "$(cfg .binary)" -m "$(cfg ".models[\"$1\"].path")" --port "$port" \
+    -c "$(cfg ".models[\"$1\"].ctx")" -v >/dev/null 2>&1 &
+  i=0; until healthy "$port"; do
+    i=$((i + 1)); [ "$i" -gt 300 ] && { echo "server for $1 failed" >&2; exit 1; }
+    sleep 1
+  done
+}
+
+records() {
+  case "$1" in *.jsonl) cat "$1" ;;
+  *) cat "$1/template.history.jsonl" "$1/history.jsonl" 2>/dev/null ;; esac
+}
+
+sysprompt() {
+  records "$1" | tail -n 1 | jq -er \
+    '.__verbose.prompt | split("<|im_start|>system\n")[1] | split("<|im_end|>")[0]' \
+    || { echo "no system prompt found in $1" >&2; exit 1; }
+}
+
+cases() {
+  records "$1" | jq -c '.__verbose.prompt | split("<|im_start|>user\n")[1]
+    | split("<|im_end|>")[0] | select(startswith("EVALS ")) | .[6:] | fromjson' \
+    | tail -n 1 | grep . || { echo "no EVALS message found in $1" >&2; exit 1; }
+}
+
+call() { # target user model [system]
+  sys=${4:-$(sysprompt "$1")} || exit 1
+  ensure "$3"
+  body=$(jq -c --arg m "$3" --arg s "$sys" --arg u "$2" '.models[$m].params +
+    {messages: [{role: "system", content: $s}, {role: "user", content: $u}]}' "$CFG")
+  resp=$(curl -sf -m 1800 -H 'Content-Type: application/json' -d "$body" \
+    "http://$(cfg .host):$(cfg ".models[\"$3\"].port")/v1/chat/completions") || exit 1
+  case "$1" in *.jsonl) log=$1 ;; *) log=$1/history.jsonl ;; esac
+  mkdir -p "$(dirname "$log")"
+  while ! mkdir "$log.lock" 2>/dev/null; do sleep 0.05; done # atomic append
+  printf '%s\n' "$resp" >> "$log"; rmdir "$log.lock"
+  printf '%s' "$resp" | jq -r '.choices[0].message.content // ""'
+}
+
+run_eval() { # name agent-dir model
+  cs=$(cases "$2") || exit 1
+  n=$(printf '%s' "$cs" | jq length) ok=0 i=0
+  while [ "$i" -lt "$n" ]; do
+    ans=$(call "$2" "$(printf '%s' "$cs" | jq -r ".[$i].user")" "$3")
+    printf '%s' "$ans" | jq -Rse --arg re "$(printf '%s' "$cs" | jq -r ".[$i].expect")" \
+      'test($re; "im")' >/dev/null && ok=$((ok + 1))
+    i=$((i + 1))
+  done
+  echo "$1 $3 $ok/$n"
+}
+
+evaluate() { # targets... (MODELS set)
+  TMP=$(mktemp -d) j=0
+  for m in $MODELS; do ensure "$m"; done # serial pre-warm: parallel first calls
+  for t in "$@"; do                      # would spawn duplicate multi-GB servers
+    name=$(basename "$t" .jsonl); dir=$t
+    case "$t" in *.jsonl) dir="$ROOT/runs/$name"; new "$dir" "$t" ;; esac
+    for m in $MODELS; do
+      j=$((j + 1)); run_eval "$name" "$dir" "$m" > "$TMP/$j" &
+    done
+  done
+  wait
+  cat "$TMP"/* | awk -v models="$MODELS" '
+    { s[$1 "\t" $2] = $3; if (!($1 in seen)) { seen[$1]; names[++nn] = $1 } }
+    END {
+      nm = split(models, m, " "); printf "%-20s", ""
+      for (i = 1; i <= nm; i++) printf "%-16s", m[i]; print ""
+      for (r = 1; r <= nn; r++) {
+        printf "%-20s", names[r]
+        for (i = 1; i <= nm; i++) {
+          sc = s[names[r] "\t" m[i]]; printf "%-16s", sc
+          split(sc, p, "/"); ok[i] += p[1]; all[i] += p[2]
+        }
+        print ""
+      }
+      printf "%-20s", "total"
+      for (i = 1; i <= nm; i++) printf "%-16s", ok[i] "/" all[i]; print ""
+    }'
+  rm -r "$TMP"
+}
+
+new() { mkdir -p "$1" && cp "$2" "$1/template.history.jsonl"; }
+
+cmd=$1; [ $# -gt 0 ] && shift
+MODEL='' SYSTEM='' n=$#
+while [ "$n" -gt 0 ]; do
+  case "$1" in
+  -m) MODEL=$2; shift 2; n=$((n - 2)) ;;
+  --system) SYSTEM=$2; shift 2; n=$((n - 2)) ;;
+  *) set -- "$@" "$1"; shift; n=$((n - 1)) ;;
+  esac
+done
+case "$cmd" in
+new) new "$1" "$2" ;;
+call) call "$1" "$2" "${MODEL:-$(cfg .default_model)}" "$SYSTEM" ;;
+eval)
+  MODELS=$(echo "${MODEL:-$(cfg '.models | keys_unsorted | join(",")')}" | tr , ' ')
+  evaluate "$@" ;;
+*) sed -n '2,11p' "$0" | cut -c3-; exit 1 ;;
+esac
