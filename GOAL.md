@@ -72,9 +72,15 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
   fresh-instance eval 3/3 + 3/3 both before and after. No-CONFIG branch on a
   yes-no copy: 1 line, state semantically identical. Committed with this
   change.)*
-- [ ] **T2 — `improve --all` fixpoint sweep.** Iterate `improve` over the
+- [x] **T2 — `improve --all` fixpoint sweep.** Iterate `improve` over the
   core + every template until a full pass accepts zero rewrites. *Accept:*
   the sweep terminates; per-round accepted/rejected log recorded here.
+  *(2026-07-10 round 1, core + 23 templates: 22 already perfect; 2 rewrite
+  attempts, both rejected — language-detect 7/8 → 0/8, locate-0 19/20 → 9/20
+  (candidates authored by the 0.6b default model scored far below incumbent).
+  Zero accepted in a full pass ⇒ fixpoint reached at round 1; no template
+  changed. Re-run over the post-T8/T9 set happens at campaign end per the
+  final task. Committed with this change.)*
 - [ ] **T3 — Close the 0.6B's last misses.** `locate-0` (9/10) and
   `language-detect` (3/4), via more improve rounds or better seed turns,
   under the 3-strike rule. *Accept:* improved, or marked capability-limited
@@ -121,6 +127,14 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
 - [ ] **T9 — Third model.** Register a mid-size instruct GGUF (~4B class)
   with one `CONFIG` call after checking disk/RAM; seed it like the others.
   *Accept:* three-column matrix committed.
+- [ ] **T11 — Quick-eval option (user, 2026-07-10).** A fast TDD loop instead
+  of comprehensive runs while iterating: `quick/` holds one-line derived
+  templates (source template's system prompt, EVALS = only its known-failing
+  items) plus `quick-eval.sh` runs those and one fast representative template
+  per category. Every newly discovered failing item gets added to `quick/`;
+  the comprehensive matrix runs once at campaign end as the final summary.
+  *Accept:* `quick-eval.sh` runs in a small fraction of full-matrix time;
+  known failures reproduce red in it; new failures found later are added.
 - [ ] **T10 — Starter-pack export/import.** A pack IS a compacted template
   file. Document share/import (copy the file + `./agent new`) in README.
   Explicit non-goal: marketplace infrastructure. *Accept:* a pack exported
