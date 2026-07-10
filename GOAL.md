@@ -73,10 +73,16 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
   `language-detect` (3/4), via more improve rounds or better seed turns,
   under the 3-strike rule. *Accept:* improved, or marked capability-limited
   with evidence.
-- [ ] **T4 — Marker-truncation guard.** Messages containing a literal
+- [x] **T4 — Marker-truncation guard.** Messages containing a literal
   `<|im_end|>` / `<|im_start|>` silently truncate extraction. Guard it or
   make it fail loudly. *Accept:* an adversarial call either round-trips or
   errors visibly; no silent truncation.
+  *(2026-07-10: `call` refuses any user/system text containing `<|im_` before
+  contacting the server or appending — round-tripping an embedded marker is
+  inherently ambiguous, so fail-loudly was chosen over escaping. Verified:
+  marker in user msg and in `--system` both error rc=1 with target file
+  untouched; clean call still answers and appends. Committed with this
+  change.)*
 - [x] **T5 — Eval basename-collision guard.** Two templates with the same
   filename clobber one `runs/` instance. *Accept:* collision detected,
   clean error.

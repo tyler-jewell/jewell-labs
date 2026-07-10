@@ -82,6 +82,9 @@ call() { # target user model [system]
     URL="http://$(cfg '.host // "127.0.0.1"'):$(cfg '.port // 18080')" ;;
   esac
   sys=${4:-$(sysprompt "$1")} || exit 1
+  case "$2$sys" in *'<|im_'*) echo \
+    "refusing: message contains a literal <|im_...|> chat marker, which would corrupt history extraction" >&2
+    exit 1 ;; esac
   m=${3:-$(cfg .default_model)}
   ensure
   body=$(printf '%s' "$CONF" | jq -c --arg m "$m" --arg s "$sys" --arg u "$2" \
