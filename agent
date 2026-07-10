@@ -168,6 +168,8 @@ $(cat "$TMP/fails")Rewrite your system prompt so these cases pass without losing
 }
 
 evaluate() { # targets... (MODELS set)
+  dup=$(for t in "$@"; do basename "$t" .jsonl; done | sort | uniq -d)
+  [ -z "$dup" ] || { echo "duplicate template names: $dup" >&2; exit 1; }
   TMP=$(mktemp -d) j=0; trap 'rm -rf "$TMP"' EXIT; trap 'exit 1' INT TERM
   ensure
   for m in $MODELS; do   # one model at a time: only one is ever in memory,

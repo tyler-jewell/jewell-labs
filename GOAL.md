@@ -77,9 +77,12 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
   `<|im_end|>` / `<|im_start|>` silently truncate extraction. Guard it or
   make it fail loudly. *Accept:* an adversarial call either round-trips or
   errors visibly; no silent truncation.
-- [ ] **T5 — Eval basename-collision guard.** Two templates with the same
+- [x] **T5 — Eval basename-collision guard.** Two templates with the same
   filename clobber one `runs/` instance. *Accept:* collision detected,
   clean error.
+  *(2026-07-10: `evaluate` rejects duplicate basenames up front —
+  `duplicate template names: yes-no`, rc=1, no server spawned; distinct
+  names still pass the guard. +2 lines. Committed with this change.)*
 - [x] **T6 — mktemp leak fix.** Early-exit paths in `improve`/`score` leak
   temp dirs. *Accept:* no orphan dirs after a forced early exit.
   *(2026-07-10: `improve`/`evaluate` now set `trap 'rm -rf "$TMP"' EXIT` +
