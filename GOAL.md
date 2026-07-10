@@ -127,7 +127,7 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
 - [ ] **T9 — Third model.** Register a mid-size instruct GGUF (~4B class)
   with one `CONFIG` call after checking disk/RAM; seed it like the others.
   *Accept:* three-column matrix committed.
-- [ ] **T11 — Quick-eval option (user, 2026-07-10).** A fast TDD loop instead
+- [x] **T11 — Quick-eval option (user, 2026-07-10).** A fast TDD loop instead
   of comprehensive runs while iterating: `quick/` holds one-line derived
   templates (source template's system prompt, EVALS = only its known-failing
   items) plus `quick-eval.sh` runs those and one fast representative template
@@ -135,6 +135,12 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
   the comprehensive matrix runs once at campaign end as the final summary.
   *Accept:* `quick-eval.sh` runs in a small fraction of full-matrix time;
   known failures reproduce red in it; new failures found later are added.
+  *(2026-07-10: both known 0.6b failures diagnosed as finish_reason=length —
+  the model burns all 2048 completion tokens inside <think> and emits no
+  content. quick/language-detect-1.jsonl + quick/locate-0-7.jsonl derived as
+  one-line templates; quick-eval.sh = those + core + 4 category reps: 20
+  cases, 1m46s both models, 18/20 + 20/20 — red exactly on the two known
+  items. Committed with this change.)*
 - [ ] **T10 — Starter-pack export/import.** A pack IS a compacted template
   file. Document share/import (copy the file + `./agent new`) in README.
   Explicit non-goal: marketplace infrastructure. *Accept:* a pack exported
