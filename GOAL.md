@@ -81,10 +81,22 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
   Zero accepted in a full pass ⇒ fixpoint reached at round 1; no template
   changed. Re-run over the post-T8/T9 set happens at campaign end per the
   final task. Committed with this change.)*
-- [ ] **T3 — Close the 0.6B's last misses.** `locate-0` (9/10) and
+- [x] **T3 — Close the 0.6B's last misses.** `locate-0` (9/10) and
   `language-detect` (3/4), via more improve rounds or better seed turns,
   under the 3-strike rule. *Accept:* improved, or marked capability-limited
   with evidence.
+  *(2026-07-10: both misses were finish_reason=length — greedy decoding
+  (temp 0) sends the 0.6b's <think> into an unbounded repetition loop (8k+
+  tokens on "Donde esta la biblioteca?"); no-think answers wrong instead.
+  Fix = better seed turns: per-template CONFIG patch for qwen3-0.6b to
+  Qwen's thinking-mode sampling (temp 0.6, top_p 0.95, top_k 20, seed 42),
+  folded in via call + compact. Sampling made runs flaky under the eval
+  workload (prompt-cache chunking jitter), so core CONFIG now sets
+  cache_prompt:false for both models — 4× solo runs and 2× full quick-eval
+  now byte-identical. Result: language-detect 4/4 + 4/4, locate-0 10/10 +
+  10/10, quick-eval 20/20 + 20/20. Also learned + documented in README:
+  the core's CONFIG message must be complete (latest-wins replaces it),
+  agent CONFIGs are patches. Committed with this change.)*
 - [x] **T4 — Marker-truncation guard.** Messages containing a literal
   `<|im_end|>` / `<|im_start|>` silently truncate extraction. Guard it or
   make it fail loudly. *Accept:* an adversarial call either round-trips or

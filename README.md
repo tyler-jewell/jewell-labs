@@ -33,6 +33,12 @@ All models are served by one llama-server router process with at most one
 model in memory at a time; an idle reaper kills the server and its model
 workers after `idle_ttl` seconds (default 600) without a call.
 
+Only the latest CONFIG message counts. The core agent's must therefore be
+complete — to change one core setting, send the whole config again with that
+setting changed. An individual agent's CONFIG is the opposite: a patch,
+deep-merged over the core's, so it carries only its overrides (e.g. one
+model's sampling params).
+
 ## Use
 
 ```sh
@@ -41,6 +47,7 @@ workers after `idle_ttl` seconds (default 600) without a call.
 ./agent eval templates/swe/locate-0.jsonl            # score its embedded evals
 ./agent eval template.history.jsonl templates/*/*.jsonl   # full matrix: agents in parallel, one model at a time
 ./agent improve templates/classify/language-detect.jsonl -m qwen3.6-35b
+./agent compact my-agent                             # fold its current state into a minimal 1–2 line template
 ```
 
 `improve` is the self-improvement loop: the agent is graded on its embedded
@@ -60,3 +67,26 @@ Create a brand-new agent from one prompt, using a local model itself:
 agents and carries this machine's CONFIG. `templates/{category}/{name}.jsonl`
 are portable one-call starter histories (prompt + evals, no machine facts);
 `runs/` holds eval instantiations and may be deleted at any time.
+
+## Starter packs
+
+A starter pack IS a compacted template file — one line of raw llama-server
+dump carrying an agent's system prompt and evals (two lines when it also
+carries its own CONFIG). Export by compacting, share by copying the file:
+
+```sh
+./agent compact my-agent                        # fold current state into the seed
+cp my-agent/template.history.jsonl commit-reviewer.jsonl   # the pack is this file
+```
+
+Import on any machine whose core history carries a CONFIG (see Setup):
+
+```sh
+./agent new commit-reviewer commit-reviewer.jsonl
+./agent eval commit-reviewer.jsonl              # trust, then verify
+```
+
+Machine facts (model paths, ports) live in the importer's core history, never
+in the pack, so packs move across machines and models unchanged. Explicit
+non-goal: there is no registry, no manifest, no marketplace — a pack is a
+file.
