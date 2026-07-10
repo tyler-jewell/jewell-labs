@@ -97,6 +97,13 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
   10/10, quick-eval 20/20 + 20/20. Also learned + documented in README:
   the core's CONFIG message must be complete (latest-wins replaces it),
   agent CONFIGs are patches. Committed with this change.)*
+  *(Update, later same day: locate-0's sampled patch proved
+  workload-marginal — case 7 flipped red when quick-eval grew to 9 rows;
+  temp 0.45 converges to a wrong answer, top_k 8 stayed workload-sensitive.
+  Superseded by fully deterministic decoding: temp 0 + dry_multiplier 0.8
+  (DRY breaks the think-loop as a pure function of the sequence, no RNG).
+  locate-0 10/10 on 0.6b; quick-eval ×2 identical, all models green on
+  locate-0-7. language-detect keeps its sampled patch — never flipped.)*
 - [x] **T4 — Marker-truncation guard.** Messages containing a literal
   `<|im_end|>` / `<|im_start|>` silently truncate extraction. Guard it or
   make it fail loudly. *Accept:* an adversarial call either round-trips or
@@ -131,11 +138,25 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
   call answers "Yes" → eval `yes-no 4/4` → PORTABILITY TEST PASSED, exit 0,
   with Qwen3-0.6B-Q8_0 mounted at `/model.gguf`. Committed with this
   change.)*
-- [ ] **T8 — Wider benchmark surface.** New `templates/reason/` category
+- [x] **T8 — Wider benchmark surface.** New `templates/reason/` category
   (GSM8K-style, regex-gradeable numeric answers, ~3 templates × ~5 cases,
   pulled via the HF datasets rows API with curl+jq) and a harder SWE framing
   (file *and* function). *Accept:* new templates in the matrix, baselines
   recorded here, one improve pass run over them.
+  *(2026-07-10: `reason/gsm-0..2` = GSM8K test rows 0–14 via
+  datasets-server rows API; graded by final-line-number regex.
+  `swe/locate-fn` = 5 SWE-bench-Verified single-file/single-function issues
+  graded `file\.py::(\w+\.)?function`; carries a 35b max_tokens:8192 CONFIG
+  patch (two issues need >4096 thinking tokens; core 35b ctx now 16384).
+  Seed baselines: 0.6b 11/20, 35b 17/20, 4b 5/20. Improve pass (35b
+  authoring): gsm-0 11/15→12/15 and gsm-2 10/15→11/15 accepted — gsm-0's
+  self-authored "last line must contain ONLY the number" rule fixed the 4b's
+  'Final answer:' prefix habit and was propagated to gsm-1/2 as reseeds;
+  gsm-1 and locate-fn rewrites rejected. Post-refine: 0.6b 10/20, 35b
+  17/20, 4b 11/20. Remaining misses are genuine headroom (0.6b math errors,
+  4b's residual prefix habit, hard localizations incl. one 35b think-loop
+  beyond 8k tokens); canaries quick/gsm-0-0 + quick/locate-fn-0 added.
+  Committed with this change.)*
 - [ ] **T9 — Third model.** Register a mid-size instruct GGUF (~4B class)
   with one `CONFIG` call after checking disk/RAM; seed it like the others.
   *Accept:* three-column matrix committed.
