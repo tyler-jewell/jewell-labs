@@ -3,22 +3,43 @@
 # template.history.jsonl (seed messages - the only thing an agent may change
 # to improve itself) and history.jsonl (append-only log). Every line of both
 # is the raw verbose dump llama.cpp returns for one call. Nothing else exists:
-# the system prompt, and the agent's evals, are re-extracted live from the
-# union of those files on every use. Needs only sh, curl, jq, llama.cpp.
+# the system prompt, the agent's evals (latest user message 'EVALS [...]') and
+# the whole configuration - model paths, server, params - (latest user message
+# 'CONFIG {...}', an agent's merged over the core agent's in this directory)
+# are re-extracted live from the union of those files on every use.
+# Needs only sh, curl, jq, llama.cpp.
 #
 #   agent new  <agent-dir> <template.jsonl>      seed an agent from a template
 #   agent call <agent-dir|template.jsonl> "msg" [--system "..."] [-m model]
 #   agent eval <agent-dir|template.jsonl>... [-m model,model]    score matrix
 #   agent improve <agent-dir|template.jsonl> [-m model]   agent rewrites its
-#     own template: graded on its evals, shown its failures, its new prompt is
-#     kept only if the score across all models strictly improves
+#     own template (system prompt and/or CONFIG params); kept only if the
+#     score across all models strictly improves; its EVALS never change
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-CFG="$ROOT/config.yaml"
-
-cfg() { jq -r "$1" "$CFG"; }
-
-URL="http://$(cfg .host):$(cfg .port)"
 USE="$ROOT/runs/.lastuse"
+
+records() {
+  case "$1" in *.jsonl) cat "$1" 2>/dev/null ;;
+  *) cat "$1/template.history.jsonl" "$1/history.jsonl" 2>/dev/null ;; esac
+}
+
+UMSG='.__verbose.prompt | split("<|im_start|>user\n")[1] // "" | split("<|im_end|>")[0]'
+
+latest() { # target PREFIX -> payload of the newest user message "PREFIX {...}"
+  records "$1" | jq -c \
+    "$UMSG | select(startswith(\"$2 \")) | .[$((${#2} + 1)):] | fromjson" \
+    2>/dev/null | tail -n 1
+}
+
+resolve() { # set CONF for target: core CONFIG deep-merged with the target's
+  core=$(latest "$ROOT" CONFIG); [ -n "$core" ] || core='{}'
+  mine=''; [ -n "$1" ] && [ "$1" != "$ROOT" ] && mine=$(latest "$1" CONFIG)
+  [ -n "$mine" ] || mine='{}'
+  CONF=$(jq -cn --argjson a "$core" --argjson b "$mine" '$a * $b')
+  URL="http://$(cfg '.host // "127.0.0.1"'):$(cfg '.port // 18080')"
+}
+
+cfg() { printf '%s' "$CONF" | jq -r "$1"; }
 
 healthy() { curl -sf -m 2 "$URL/health" >/dev/null 2>&1; }
 
@@ -28,23 +49,18 @@ ensure() { # one router server for all models; at most one model in memory
   cfg '.models | to_entries[] |
     "[\(.key)]\nmodel = \(.value.path)\nctx-size = \(.value.ctx)\n"' \
     > "$ROOT/runs/preset.ini"
-  "$(cfg .binary)" --models-preset "$ROOT/runs/preset.ini" --models-max 1 \
-    --port "$(cfg .port)" -v >/dev/null 2>&1 &
+  "$(cfg '.binary // "llama-server"')" --models-preset "$ROOT/runs/preset.ini" \
+    --models-max 1 --port "$(cfg '.port // 18080')" -v >/dev/null 2>&1 &
   srv=$!
   k=0; until healthy; do
     k=$((k + 1)); [ "$k" -gt 60 ] && { echo "server failed to start" >&2; exit 1; }
     sleep 1
   done
-  ( ttl=$(cfg .idle_ttl); while healthy; do # reaper: no idle servers; kills the
+  ( ttl=$(cfg '.idle_ttl // 600'); while healthy; do # reaper: no idle servers;
       if [ $(($(date +%s) - $(cat "$USE" 2>/dev/null || echo 0))) -gt "$ttl" ]
       then kill $(pgrep -P "$srv") "$srv" 2>/dev/null; exit; fi # workers, then
       sleep 30                                                  # the router
     done ) >/dev/null 2>&1 &
-}
-
-records() {
-  case "$1" in *.jsonl) cat "$1" ;;
-  *) cat "$1/template.history.jsonl" "$1/history.jsonl" 2>/dev/null ;; esac
 }
 
 sysprompt() {
@@ -54,16 +70,21 @@ sysprompt() {
 }
 
 cases() {
-  records "$1" | jq -c '.__verbose.prompt | split("<|im_start|>user\n")[1]
-    | split("<|im_end|>")[0] | select(startswith("EVALS ")) | .[6:] | fromjson' \
-    | tail -n 1 | grep . || { echo "no EVALS message found in $1" >&2; exit 1; }
+  latest "$1" EVALS | grep . ||
+    { echo "no EVALS message found in $1" >&2; exit 1; }
 }
 
 call() { # target user model [system]
+  case "$2" in "CONFIG "*) # a CONFIG call configures itself: bootstrap-safe
+    CONF=$(jq -cn --argjson a "$CONF" --argjson b "${2#CONFIG }" '$a * $b')
+    URL="http://$(cfg '.host // "127.0.0.1"'):$(cfg '.port // 18080')" ;;
+  esac
   sys=${4:-$(sysprompt "$1")} || exit 1
+  m=${3:-$(cfg .default_model)}
   ensure
-  body=$(jq -c --arg m "$3" --arg s "$sys" --arg u "$2" '.models[$m].params +
-    {model: $m, messages: [{role: "system", content: $s}, {role: "user", content: $u}]}' "$CFG")
+  body=$(printf '%s' "$CONF" | jq -c --arg m "$m" --arg s "$sys" --arg u "$2" \
+    '.models[$m].params + {model: $m, messages: [
+      {role: "system", content: $s}, {role: "user", content: $u}]}')
   date +%s > "$USE"
   resp=$(curl -sf -m 1800 -H 'Content-Type: application/json' -d "$body" \
     "$URL/v1/chat/completions") || exit 1
@@ -78,6 +99,7 @@ call() { # target user model [system]
 grade() { printf '%s' "$1" | jq -Rse --arg re "$2" 'test($re; "im")' >/dev/null; }
 
 run_eval() { # name agent-dir model
+  resolve "$2"
   cs=$(cases "$2") || exit 1
   n=$(printf '%s' "$cs" | jq length) ok=0 i=0
   while [ "$i" -lt "$n" ]; do
@@ -89,6 +111,7 @@ run_eval() { # name agent-dir model
 }
 
 score() { # agent-dir failure-log; echoes "ok n" across all MODELS
+  resolve "$1"
   cs=$(cases "$1") || exit 1
   ncase=$(printf '%s' "$cs" | jq length) ok=0 n=0
   for m in $MODELS; do
@@ -106,9 +129,8 @@ score() { # agent-dir failure-log; echoes "ok n" across all MODELS
   echo "$ok $n"
 }
 
-improve() { # target (MODEL writes the new prompt; scored across all MODELS)
+improve() { # target (MODEL writes the rewrite; scored across all MODELS)
   t=$1 name=$(basename "$1" .jsonl)
-  ensure
   inst=$t
   case "$t" in *.jsonl) inst="$ROOT/runs/$name"; new "$inst" "$t" ;; esac
   evals=$(cases "$inst") || exit 1
@@ -117,14 +139,20 @@ improve() { # target (MODEL writes the new prompt; scored across all MODELS)
   if [ "$bok" -eq "$n" ]; then
     echo "$name: already perfect ($bok/$n)"; rm -r "$TMP"; return
   fi
-  newsys=$(call "$inst" "You scored $bok/$n on your evals. These cases failed:
+  resolve "$inst"
+  reply=$(call "$inst" "You scored $bok/$n on your evals. These cases failed:
 
-$(cat "$TMP/fails")Rewrite your system prompt so these cases pass without losing the behaviors that already pass. Keep it concise. Reply with only the new system prompt." "$MODEL")
+$(cat "$TMP/fails")Rewrite your system prompt so these cases pass without losing the behaviors that already pass. Keep it concise. Reply with the complete new system prompt (always the full prompt, even if you would change nothing). If your sampling parameters should also change, add one final line: CONFIG {\"models\": {\"<model-name>\": {\"params\": {...}}}}" "$MODEL")
+  newcfg=$(printf '%s' "$reply" | sed -n 's/^CONFIG //p' | tail -n 1)
+  newsys=$(printf '%s' "$reply" | grep -v '^CONFIG ')
+  [ -n "$(printf '%s' "$newsys" | tr -d '[:space:]')" ] || newsys=$(sysprompt "$inst")
   case "$newsys" in *template.history.jsonl*) ;; # keep the self-improvement
   *) newsys="$newsys You are defined entirely by your template.history.jsonl. You may improve yourself only by updating template.history.jsonl, the seed messages that define you; history.jsonl is an append-only record you can never change." ;;
   esac
   cand="$ROOT/runs/$name.cand"
-  rm -rf "$cand" "$cand.jsonl"; mkdir -p "$cand"
+  rm -rf "$cand" "$cand.jsonl"
+  [ -n "$newcfg" ] && printf '%s' "$newcfg" | jq -e . >/dev/null 2>&1 &&
+    call "$cand.jsonl" "CONFIG $newcfg" "$MODEL" "$newsys" >/dev/null
   call "$cand.jsonl" "EVALS $evals" "$MODEL" "$newsys" >/dev/null
   new "$cand" "$cand.jsonl"
   set -- $(score "$cand" "$TMP/fails2"); aok=$1
@@ -167,7 +195,10 @@ evaluate() { # targets... (MODELS set)
   rm -r "$TMP"
 }
 
-new() { mkdir -p "$1" && cp "$2" "$1/template.history.jsonl"; }
+new() { # seeding is a fresh start: a new agent inherits no previous log
+  mkdir -p "$1" && cp "$2" "$1/template.history.jsonl" &&
+    rm -f "$1/history.jsonl"
+}
 
 cmd=$1; [ $# -gt 0 ] && shift
 MODEL='' SYSTEM='' n=$#
@@ -180,13 +211,15 @@ while [ "$n" -gt 0 ]; do
 done
 case "$cmd" in
 new) new "$1" "$2" ;;
-call) call "$1" "$2" "${MODEL:-$(cfg .default_model)}" "$SYSTEM" ;;
+call) resolve "$1"; call "$1" "$2" "$MODEL" "$SYSTEM" ;;
 eval)
+  resolve "$ROOT"
   MODELS=$(echo "${MODEL:-$(cfg '.models | keys_unsorted | join(",")')}" | tr , ' ')
   evaluate "$@" ;;
 improve)
+  resolve "$ROOT"
   MODELS=$(cfg '.models | keys_unsorted | join(" ")')
   MODEL=${MODEL:-$(cfg .default_model)}
   improve "${1:?usage: agent improve <agent-dir|template.jsonl>}" ;;
-*) sed -n '2,14p' "$0" | cut -c3-; exit 1 ;;
+*) sed -n '2,17p' "$0" | cut -c3-; exit 1 ;;
 esac
