@@ -80,8 +80,13 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
 - [ ] **T5 — Eval basename-collision guard.** Two templates with the same
   filename clobber one `runs/` instance. *Accept:* collision detected,
   clean error.
-- [ ] **T6 — mktemp leak fix.** Early-exit paths in `improve`/`score` leak
+- [x] **T6 — mktemp leak fix.** Early-exit paths in `improve`/`score` leak
   temp dirs. *Accept:* no orphan dirs after a forced early exit.
+  *(2026-07-10: `improve`/`evaluate` now set `trap 'rm -rf "$TMP"' EXIT` +
+  route INT/TERM through `exit`; `call` no longer resets INT/TERM to default.
+  Verified with a stub llama-server: eval hitting the 60s startup timeout
+  (exit 1) and TERM mid-improve both leave a private TMPDIR empty. Script
+  226 lines (−2). Committed with this change.)*
 - [ ] **T7 — In-repo portability proof.** Commit `Dockerfile` +
   `portability-test.sh` (llama.cpp `:full` image, `ENV LD_LIBRARY_PATH=/app`,
   apt jq/curl; mount repo ro + a small GGUF; fresh dir inside: bootstrap

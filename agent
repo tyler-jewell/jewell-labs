@@ -95,7 +95,7 @@ call() { # target user model [system]
   mkdir -p "$(dirname "$log")"
   while ! mkdir "$log.lock" 2>/dev/null; do sleep 0.05; done # atomic append
   trap 'rmdir "$log.lock" 2>/dev/null; exit 1' INT TERM
-  printf '%s\n' "$resp" >> "$log"; rmdir "$log.lock"; trap - INT TERM
+  printf '%s\n' "$resp" >> "$log"; rmdir "$log.lock"; trap 'exit 1' INT TERM
   printf '%s' "$resp" | jq -r '.choices[0].message.content // ""'
 }
 
@@ -137,10 +137,10 @@ improve() { # target (MODEL writes the rewrite; scored across all MODELS)
   inst=$t
   case "$t" in *.jsonl) inst="$ROOT/runs/$name"; new "$inst" "$t" ;; esac
   evals=$(cases "$inst") || exit 1
-  TMP=$(mktemp -d)
+  TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT; trap 'exit 1' INT TERM
   set -- $(score "$inst" "$TMP/fails"); bok=$1 n=$2
   if [ "$bok" -eq "$n" ]; then
-    echo "$name: already perfect ($bok/$n)"; rm -r "$TMP"; return
+    echo "$name: already perfect ($bok/$n)"; return
   fi
   resolve "$inst"
   reply=$(call "$inst" "You scored $bok/$n on your evals. These cases failed:
@@ -165,11 +165,10 @@ $(cat "$TMP/fails")Rewrite your system prompt so these cases pass without losing
   else
     echo "$name: $bok/$n -> $aok/$n (kept current template)"
   fi
-  rm -r "$TMP"
 }
 
 evaluate() { # targets... (MODELS set)
-  TMP=$(mktemp -d) j=0
+  TMP=$(mktemp -d) j=0; trap 'rm -rf "$TMP"' EXIT; trap 'exit 1' INT TERM
   ensure
   for m in $MODELS; do   # one model at a time: only one is ever in memory,
     for t in "$@"; do    # and requests never thrash the router's model swap
@@ -195,7 +194,6 @@ evaluate() { # targets... (MODELS set)
       printf "%-20s", "total"
       for (i = 1; i <= nm; i++) printf "%-16s", ok[i] "/" all[i]; print ""
     }'
-  rm -r "$TMP"
 }
 
 new() { # seeding is a fresh start: a new agent inherits no previous log
