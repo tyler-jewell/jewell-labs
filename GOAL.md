@@ -102,11 +102,17 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
   Verified with a stub llama-server: eval hitting the 60s startup timeout
   (exit 1) and TERM mid-improve both leave a private TMPDIR empty. Script
   226 lines (−2). Committed with this change.)*
-- [ ] **T7 — In-repo portability proof.** Commit `Dockerfile` +
+- [x] **T7 — In-repo portability proof.** Commit `Dockerfile` +
   `portability-test.sh` (llama.cpp `:full` image, `ENV LD_LIBRARY_PATH=/app`,
   apt jq/curl; mount repo ro + a small GGUF; fresh dir inside: bootstrap
   CONFIG → new → call → eval). *Accept:* `docker build` + `docker run`
   passes from a clean checkout.
+  *(2026-07-10: image = llama.cpp `:full` + jq/curl/procps, entrypoint runs
+  `portability-test.sh` in a fresh `/work`: CONFIG bootstrap into an empty
+  core history → `new` from ro-mounted `templates/format/yes-no.jsonl` →
+  call answers "Yes" → eval `yes-no 4/4` → PORTABILITY TEST PASSED, exit 0,
+  with Qwen3-0.6B-Q8_0 mounted at `/model.gguf`. Committed with this
+  change.)*
 - [ ] **T8 — Wider benchmark surface.** New `templates/reason/` category
   (GSM8K-style, regex-gradeable numeric answers, ~3 templates × ~5 cases,
   pulled via the HF datasets rows API with curl+jq) and a harder SWE framing
