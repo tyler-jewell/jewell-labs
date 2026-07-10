@@ -56,7 +56,9 @@ ensure() { # one router server for all models; at most one model in memory
     k=$((k + 1)); [ "$k" -gt 60 ] && { echo "server failed to start" >&2; exit 1; }
     sleep 1
   done
-  ( ttl=$(cfg '.idle_ttl // 600'); while healthy; do # reaper: no idle servers;
+  date +%s > "$USE" # stamp before arming the reaper, or it kills a cold server
+  ( ttl=$(cfg '.idle_ttl // 600')
+    while kill -0 "$srv" 2>/dev/null && healthy; do # reaper: no idle servers;
       if [ $(($(date +%s) - $(cat "$USE" 2>/dev/null || echo 0))) -gt "$ttl" ]
       then kill $(pgrep -P "$srv") "$srv" 2>/dev/null; exit; fi # workers, then
       sleep 30                                                  # the router
@@ -92,7 +94,8 @@ call() { # target user model [system]
   case "$1" in *.jsonl) log=$1 ;; *) log=$1/history.jsonl ;; esac
   mkdir -p "$(dirname "$log")"
   while ! mkdir "$log.lock" 2>/dev/null; do sleep 0.05; done # atomic append
-  printf '%s\n' "$resp" >> "$log"; rmdir "$log.lock"
+  trap 'rmdir "$log.lock" 2>/dev/null; exit 1' INT TERM
+  printf '%s\n' "$resp" >> "$log"; rmdir "$log.lock"; trap - INT TERM
   printf '%s' "$resp" | jq -r '.choices[0].message.content // ""'
 }
 

@@ -39,7 +39,7 @@ workers after `idle_ttl` seconds (default 600) without a call.
 ./agent new my-agent templates/format/yes-no.jsonl   # seed an agent from a template
 ./agent call my-agent "Is the sun a star?"           # talk to it (-m picks a model)
 ./agent eval templates/swe/locate-0.jsonl            # score its embedded evals
-./agent eval template.history.jsonl templates/*/*.jsonl   # full matrix, all models in parallel
+./agent eval template.history.jsonl templates/*/*.jsonl   # full matrix: agents in parallel, one model at a time
 ./agent improve templates/classify/language-detect.jsonl -m qwen3.6-35b
 ```
 
