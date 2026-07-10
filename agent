@@ -9,22 +9,37 @@
 #   agent new  <agent-dir> <template.jsonl>      seed an agent from a template
 #   agent call <agent-dir|template.jsonl> "msg" [--system "..."] [-m model]
 #   agent eval <agent-dir|template.jsonl>... [-m model,model]    score matrix
+#   agent improve <agent-dir|template.jsonl> [-m model]   agent rewrites its
+#     own template: graded on its evals, shown its failures, its new prompt is
+#     kept only if the score across all models strictly improves
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 CFG="$ROOT/config.yaml"
 
 cfg() { jq -r "$1" "$CFG"; }
 
-healthy() { curl -sf -m 2 "http://$(cfg .host):$1/health" >/dev/null 2>&1; }
+URL="http://$(cfg .host):$(cfg .port)"
+USE="$ROOT/runs/.lastuse"
 
-ensure() {
-  port=$(cfg ".models[\"$1\"].port")
-  healthy "$port" && return
-  "$(cfg .binary)" -m "$(cfg ".models[\"$1\"].path")" --port "$port" \
-    -c "$(cfg ".models[\"$1\"].ctx")" -v >/dev/null 2>&1 &
-  i=0; until healthy "$port"; do
-    i=$((i + 1)); [ "$i" -gt 300 ] && { echo "server for $1 failed" >&2; exit 1; }
+healthy() { curl -sf -m 2 "$URL/health" >/dev/null 2>&1; }
+
+ensure() { # one router server for all models; at most one model in memory
+  healthy && return
+  mkdir -p "$ROOT/runs"
+  cfg '.models | to_entries[] |
+    "[\(.key)]\nmodel = \(.value.path)\nctx-size = \(.value.ctx)\n"' \
+    > "$ROOT/runs/preset.ini"
+  "$(cfg .binary)" --models-preset "$ROOT/runs/preset.ini" --models-max 1 \
+    --port "$(cfg .port)" -v >/dev/null 2>&1 &
+  srv=$!
+  k=0; until healthy; do
+    k=$((k + 1)); [ "$k" -gt 60 ] && { echo "server failed to start" >&2; exit 1; }
     sleep 1
   done
+  ( ttl=$(cfg .idle_ttl); while healthy; do # reaper: no idle servers; kills the
+      if [ $(($(date +%s) - $(cat "$USE" 2>/dev/null || echo 0))) -gt "$ttl" ]
+      then kill $(pgrep -P "$srv") "$srv" 2>/dev/null; exit; fi # workers, then
+      sleep 30                                                  # the router
+    done ) >/dev/null 2>&1 &
 }
 
 records() {
@@ -46,11 +61,13 @@ cases() {
 
 call() { # target user model [system]
   sys=${4:-$(sysprompt "$1")} || exit 1
-  ensure "$3"
+  ensure
   body=$(jq -c --arg m "$3" --arg s "$sys" --arg u "$2" '.models[$m].params +
-    {messages: [{role: "system", content: $s}, {role: "user", content: $u}]}' "$CFG")
+    {model: $m, messages: [{role: "system", content: $s}, {role: "user", content: $u}]}' "$CFG")
+  date +%s > "$USE"
   resp=$(curl -sf -m 1800 -H 'Content-Type: application/json' -d "$body" \
-    "http://$(cfg .host):$(cfg ".models[\"$3\"].port")/v1/chat/completions") || exit 1
+    "$URL/v1/chat/completions") || exit 1
+  date +%s > "$USE"
   case "$1" in *.jsonl) log=$1 ;; *) log=$1/history.jsonl ;; esac
   mkdir -p "$(dirname "$log")"
   while ! mkdir "$log.lock" 2>/dev/null; do sleep 0.05; done # atomic append
@@ -58,29 +75,79 @@ call() { # target user model [system]
   printf '%s' "$resp" | jq -r '.choices[0].message.content // ""'
 }
 
+grade() { printf '%s' "$1" | jq -Rse --arg re "$2" 'test($re; "im")' >/dev/null; }
+
 run_eval() { # name agent-dir model
   cs=$(cases "$2") || exit 1
   n=$(printf '%s' "$cs" | jq length) ok=0 i=0
   while [ "$i" -lt "$n" ]; do
     ans=$(call "$2" "$(printf '%s' "$cs" | jq -r ".[$i].user")" "$3")
-    printf '%s' "$ans" | jq -Rse --arg re "$(printf '%s' "$cs" | jq -r ".[$i].expect")" \
-      'test($re; "im")' >/dev/null && ok=$((ok + 1))
+    grade "$ans" "$(printf '%s' "$cs" | jq -r ".[$i].expect")" && ok=$((ok + 1))
     i=$((i + 1))
   done
   echo "$1 $3 $ok/$n"
 }
 
-evaluate() { # targets... (MODELS set)
-  TMP=$(mktemp -d) j=0
-  for m in $MODELS; do ensure "$m"; done # serial pre-warm: parallel first calls
-  for t in "$@"; do                      # would spawn duplicate multi-GB servers
-    name=$(basename "$t" .jsonl); dir=$t
-    case "$t" in *.jsonl) dir="$ROOT/runs/$name"; new "$dir" "$t" ;; esac
-    for m in $MODELS; do
-      j=$((j + 1)); run_eval "$name" "$dir" "$m" > "$TMP/$j" &
+score() { # agent-dir failure-log; echoes "ok n" across all MODELS
+  cs=$(cases "$1") || exit 1
+  ncase=$(printf '%s' "$cs" | jq length) ok=0 n=0
+  for m in $MODELS; do
+    i=0
+    while [ "$i" -lt "$ncase" ]; do
+      u=$(printf '%s' "$cs" | jq -r ".[$i].user")
+      re=$(printf '%s' "$cs" | jq -r ".[$i].expect")
+      ans=$(call "$1" "$u" "$m") n=$((n + 1))
+      grade "$ans" "$re" && ok=$((ok + 1)) || printf \
+        'model: %s\nuser: %s\nexpected pattern: %s\nyour answer: %s\n\n' \
+        "$m" "$u" "$re" "$ans" >> "$2"
+      i=$((i + 1))
     done
   done
-  wait
+  echo "$ok $n"
+}
+
+improve() { # target (MODEL writes the new prompt; scored across all MODELS)
+  t=$1 name=$(basename "$1" .jsonl)
+  ensure
+  inst=$t
+  case "$t" in *.jsonl) inst="$ROOT/runs/$name"; new "$inst" "$t" ;; esac
+  evals=$(cases "$inst") || exit 1
+  TMP=$(mktemp -d)
+  set -- $(score "$inst" "$TMP/fails"); bok=$1 n=$2
+  if [ "$bok" -eq "$n" ]; then
+    echo "$name: already perfect ($bok/$n)"; rm -r "$TMP"; return
+  fi
+  newsys=$(call "$inst" "You scored $bok/$n on your evals. These cases failed:
+
+$(cat "$TMP/fails")Rewrite your system prompt so these cases pass without losing the behaviors that already pass. Keep it concise. Reply with only the new system prompt." "$MODEL")
+  case "$newsys" in *template.history.jsonl*) ;; # keep the self-improvement
+  *) newsys="$newsys You are defined entirely by your template.history.jsonl. You may improve yourself only by updating template.history.jsonl, the seed messages that define you; history.jsonl is an append-only record you can never change." ;;
+  esac
+  cand="$ROOT/runs/$name.cand"
+  rm -rf "$cand" "$cand.jsonl"; mkdir -p "$cand"
+  call "$cand.jsonl" "EVALS $evals" "$MODEL" "$newsys" >/dev/null
+  new "$cand" "$cand.jsonl"
+  set -- $(score "$cand" "$TMP/fails2"); aok=$1
+  dest=$t; case "$t" in *.jsonl) ;; *) dest=$t/template.history.jsonl ;; esac
+  if [ "$aok" -gt "$bok" ]; then
+    cp "$cand.jsonl" "$dest"; echo "$name: $bok/$n -> $aok/$n (template updated)"
+  else
+    echo "$name: $bok/$n -> $aok/$n (kept current template)"
+  fi
+  rm -r "$TMP"
+}
+
+evaluate() { # targets... (MODELS set)
+  TMP=$(mktemp -d) j=0
+  ensure
+  for m in $MODELS; do   # one model at a time: only one is ever in memory,
+    for t in "$@"; do    # and requests never thrash the router's model swap
+      name=$(basename "$t" .jsonl); dir=$t
+      case "$t" in *.jsonl) dir="$ROOT/runs/$name"; new "$dir" "$t" ;; esac
+      j=$((j + 1)); run_eval "$name" "$dir" "$m" > "$TMP/$j" &
+    done
+    wait
+  done
   cat "$TMP"/* | awk -v models="$MODELS" '
     { s[$1 "\t" $2] = $3; if (!($1 in seen)) { seen[$1]; names[++nn] = $1 } }
     END {
@@ -117,5 +184,9 @@ call) call "$1" "$2" "${MODEL:-$(cfg .default_model)}" "$SYSTEM" ;;
 eval)
   MODELS=$(echo "${MODEL:-$(cfg '.models | keys_unsorted | join(",")')}" | tr , ' ')
   evaluate "$@" ;;
-*) sed -n '2,11p' "$0" | cut -c3-; exit 1 ;;
+improve)
+  MODELS=$(cfg '.models | keys_unsorted | join(" ")')
+  MODEL=${MODEL:-$(cfg .default_model)}
+  improve "${1:?usage: agent improve <agent-dir|template.jsonl>}" ;;
+*) sed -n '2,14p' "$0" | cut -c3-; exit 1 ;;
 esac
