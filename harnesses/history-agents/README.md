@@ -49,11 +49,27 @@ full llama-server dump (timings, sampler settings, token ids, reasoning
 trace). That's the whole "least fields needed" rule, applied uniformly by
 `agent call` to every line it appends, not just the shipped seed.
 
+**Real capabilities, not just text.** An agent can register a pure function
+as a capability via the latest user message `SCRIPTS {"name":"(args)=>expr"}`
+— pinned the same way EVALS is. When a later request matches a registered
+capability, the agent doesn't compute it itself: it replies with exactly
+`RUN <name> <arg>...`, and `agent call` transparently executes the real
+function via `bunx tsx -e` and substitutes the true result as the answer.
+The function's source lives only as text inside `history.jsonl` — it is
+never written to a file, not even transiently; `bunx tsx -e` runs it inline.
+This is how the shipped seed teaches itself reliable arithmetic: it carries
+`SCRIPTS {"add":"(a,b)=>a+b","multiply":"(a,b)=>a*b"}`, and a fresh install,
+asked "add these two numbers: 3 and 5", replies `RUN add 3 5` and returns
+the real `8` — verified end to end from a brand-new directory containing
+only `agent` and `history.jsonl`, before and after the call.
+
 ## One seed, then it runs itself
 
 The **only version-controlled files are `agent` and `history.jsonl`.**
-`history.jsonl` as shipped is a single line: one EVALS call carrying the
-system prompt above. It intentionally carries **no CONFIG** — model paths
+`history.jsonl` as shipped is two lines: one `SCRIPTS` call registering its
+pure-function capabilities, one `EVALS` call carrying the system prompt
+above and pinning every case the agent must keep passing. It intentionally
+carries **no CONFIG** — model paths
 are machine-specific and can't be portable, so `agent init` always resolves
 them fresh, appending a CONFIG line (and a CHECKS line) once it has found a
 binary and a model. Those two extra lines are **local, not shipped** — after
@@ -102,6 +118,7 @@ SEQUENTIAL=1 ./agent eval templates/*/*.jsonl           # strictly one call at a
 ./agent compact my-agent                                # fold its current state into a minimal 1-3 line seed
 ./agent auto 5 -m qwen3-0.6b                            # let it run the repo
 ./agent serve my-agent 8080                             # chat page for an agent
+./agent run my-agent add 3 5                            # directly invoke a SCRIPTS capability
 ```
 
 `improve` is the self-improvement loop: the agent is graded on its embedded
@@ -156,4 +173,5 @@ no longer part of what a fresh install carries, per the "one seed file"
 simplification.
 
 MIT licensed. No Python, no build, no dependencies beyond sh + curl + jq +
-[llama.cpp](https://github.com/ggml-org/llama.cpp).
+[bun](https://bun.sh) (for `bunx tsx`, the runtime real capabilities execute
+in) + [llama.cpp](https://github.com/ggml-org/llama.cpp).

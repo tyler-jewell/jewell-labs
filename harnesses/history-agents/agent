@@ -7,8 +7,12 @@
 # over the root agent's in this directory) are re-extracted live from that
 # one file on every use. This repo's own root is itself the single agent:
 # it carries the machine CONFIG/CHECKS, designs other agents, and -- when
-# addressed with a STATE report -- acts as the orchestrator. Needs only sh,
-# curl, jq, llama.cpp.
+# addressed with a STATE report -- acts as the orchestrator. An agent can
+# also register real capabilities as pure functions (latest user message
+# 'SCRIPTS {"name":"(args)=>expr"}'); when it replies 'RUN <name> <arg>...'
+# the runner executes the real function via bunx (never a persisted file --
+# the source lives only as text in history.jsonl) and substitutes the true
+# result as the answer. Needs only sh, curl, jq, bunx, llama.cpp.
 #
 #   agent new  <agent-dir> <seed.jsonl>          seed an agent from a file
 #   agent call <agent-dir|history.jsonl> "msg" [--system "..."] [-m model]
@@ -24,6 +28,9 @@
 #     (EVAL/IMPROVE/NEW/DONE), no human in the loop; safe under cron
 #   agent serve [agent] [port]   chat page for an agent: every refresh
 #     re-extracts its current system prompt; every chat lands in its history
+#   agent run <agent-dir|history.jsonl> <name> <arg>...   directly invoke a
+#     SCRIPTS capability (mainly for testing; normally the agent triggers
+#     this itself by replying RUN <name> <arg>... during a normal call)
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 USE="$ROOT/runs/.lastuse"
 
@@ -111,7 +118,25 @@ call() { # target user model [system]
   while ! mkdir "$log.lock" 2>/dev/null; do sleep 0.05; done # atomic append
   trap 'rmdir "$log.lock" 2>/dev/null; exit 1' INT TERM
   printf '%s\n' "$resp" >> "$log"; rmdir "$log.lock"; trap 'exit 1' INT TERM
-  printf '%s' "$resp" | jq -r '.choices[0].message.content // ""'
+  content=$(printf '%s' "$resp" | jq -r '.choices[0].message.content // ""')
+  first=$(printf '%s\n' "$content" | head -n 1 | sed 's/[[:space:]]*$//')
+  case "$first" in RUN\ [a-z0-9_-]*\ *)
+    out=$(run "$1" ${first#RUN } 2>/dev/null) && [ -n "$out" ] && content=$out ;;
+  esac
+  printf '%s' "$content"
+}
+
+run() { # target name arg...: execute a capability from SCRIPTS, no file ever
+  s=$(latest "$1" SCRIPTS); shift # written to disk -- code lives only in history
+  name=$1; shift
+  code=$(printf '%s' "$s" | jq -er --arg n "$name" '.[$n] // empty') || return 1
+  args=''
+  for a in "$@"; do
+    printf '%s' "$a" | jq -e 'type=="number"' >/dev/null 2>&1 || return 1
+    args="$args,$a"
+  done
+  bunx tsx -e "console.log((${code})(${args#,}))" 2>/dev/null |
+    sed 's/\x1b\[[0-9;]*m//g'
 }
 
 grade() { printf '%s' "$1" | jq -Rse --arg re "$2" 'test($re; "im")' >/dev/null; }
@@ -236,6 +261,9 @@ new() { # seeding is a fresh start: a new agent inherits no previous log
 init() { # zero-input bootstrap: binary -> model -> resolve CONFIG/CHECKS -> self-check
   for c in curl jq; do command -v "$c" >/dev/null 2>&1 ||
     { echo "init needs $c: brew/apt/winget install $c" >&2; exit 1; }; done
+  command -v bunx >/dev/null 2>&1 || { echo \
+    "init needs bunx (proves real code execution, not just text matching): curl -fsSL https://bun.sh/install | bash, then re-run ./agent init" >&2
+    exit 1; }
   [ -f "$ROOT/history.jsonl" ] || { echo \
     "no history.jsonl here: fetch it alongside agent -- curl -fsSL https://raw.githubusercontent.com/tyler-jewell/jewell-labs/main/harnesses/history-agents/history.jsonl -o history.jsonl -- then re-run ./agent init" >&2
     exit 1; }
@@ -262,7 +290,8 @@ init() { # zero-input bootstrap: binary -> model -> resolve CONFIG/CHECKS -> sel
       top_k:20, max_tokens:2048, seed:42, cache_prompt:false}}}}')" '' "$sys" >/dev/null
   [ -n "$(latest "$ROOT" CHECKS)" ] || call "$ROOT" \
     "CHECKS $(jq -cn --arg b "$bin" --arg p "$gguf" \
-      '["command -v jq","command -v curl",("test -x "+$b),("test -s "+$p)]')" \
+      '["command -v jq","command -v curl",("test -x "+$b),("test -s "+$p),
+        "bunx tsx -e \"if ((1+1)!==2) process.exit(1)\""]')" \
     '' "$sys" >/dev/null
   echo "ready: $ROOT/history.jsonl -- running self-check evals..."
   resolve "$ROOT"; MODEL='' MODELS=$(cfg '.models | keys_unsorted | join(" ")')
@@ -418,5 +447,6 @@ compact)
 init) init ;;
 auto) preflight; auto "$@" ;;
 serve) serve "$@" ;;
-*) sed -n '2,26p' "$0" | cut -c3-; exit 1 ;;
+run) resolve "$1"; t=$1; shift; run "$t" "$@" ;;
+*) sed -n '2,33p' "$0" | cut -c3-; exit 1 ;;
 esac
