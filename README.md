@@ -46,6 +46,7 @@ model's sampling params).
 ./agent call my-agent "Is the sun a star?"           # talk to it (-m picks a model)
 ./agent eval templates/swe/locate-0.jsonl            # score its embedded evals
 ./agent eval template.history.jsonl templates/*/*.jsonl   # full matrix: agents in parallel, one model at a time
+SEQUENTIAL=1 ./agent eval templates/*/*.jsonl        # strictly one call at a time: slower, bit-reproducible
 ./agent improve templates/classify/language-detect.jsonl -m qwen3.6-35b
 ./agent compact my-agent                             # fold its current state into a minimal 1–2 line template
 ```

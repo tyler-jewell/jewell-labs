@@ -157,9 +157,13 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
   4b's residual prefix habit, hard localizations incl. one 35b think-loop
   beyond 8k tokens); canaries quick/gsm-0-0 + quick/locate-fn-0 added.
   Committed with this change.)*
-- [ ] **T9 — Third model.** Register a mid-size instruct GGUF (~4B class)
+- [x] **T9 — Third model.** Register a mid-size instruct GGUF (~4B class)
   with one `CONFIG` call after checking disk/RAM; seed it like the others.
   *Accept:* three-column matrix committed.
+  *(2026-07-10: qwen3-4b = ggml-org Qwen3-4B-Instruct-2507 Q8_0 (4.3GB;
+  32GB RAM / 266GB disk checked), registered by re-authoring the core
+  CONFIG with its recommended sampling; router preset now serves three
+  models. Three-column matrix below — committed with this change.)*
 - [x] **T11 — Quick-eval option (user, 2026-07-10).** A fast TDD loop instead
   of comprehensive runs while iterating: `quick/` holds one-line derived
   templates (source template's system prompt, EVALS = only its known-failing
@@ -198,3 +202,31 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
   (SWE localization: 28–29/30 and 30/30).
 - Sanity check: `./agent eval templates/format/yes-no.jsonl -m qwen3-0.6b`
   → `4/4`. Server processes after `idle_ttl` (600s): zero.
+
+## Campaign complete — final state (2026-07-10)
+
+Definition of done met:
+1. Every task checked (none WONTFIX); T11 added mid-campaign by the user.
+2. Fixpoint: final-sweep round 2 (core + 27 templates, 35b authoring)
+   accepted zero rewrites in a complete pass; every already-perfect
+   template scored identically across rounds 1 and 2.
+3. Reproducibility: two consecutive fresh-instance full-matrix runs
+   (`rm -rf runs` between) printed **byte-identical** tables under
+   `SEQUENTIAL=1`. Finding: at 28-template parallelism, request timing
+   perturbs numerics enough to flip marginal cases run-to-run (4 rows
+   flipped between parallel runs; solo and 9-row workloads were stable),
+   so `evaluate` gained a 3-line opt-in sequential mode — strictly one
+   call in flight — documented in README. Parallel eval remains the
+   default for iteration speed; benchmark claims use SEQUENTIAL=1.
+4. Working tree clean, every milestone committed.
+
+Final matrix (fresh instances, SEQUENTIAL=1, identical across two runs) —
+115 cases, 28 rows (core + 27 templates):
+**qwen3-0.6b 105/115 · qwen3.6-35b 113/115 · qwen3-4b 104/115**
+Remaining misses are recorded headroom: GSM math errors (0.6b), the 4b's
+residual "Final answer:" prefix habit (canaried in quick/), and hard
+localizations in locate-fn (incl. one 35b think-loop beyond 8k tokens).
+Quick TDD loop: `./quick-eval.sh` (~1.5 min, all three models) carries
+one derived template per known-failing item: gsm-0-0, hashtag-gen-2,
+locate-fn-0 red by design; language-detect-1 and locate-0-7 green since
+their fixes.

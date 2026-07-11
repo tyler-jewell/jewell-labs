@@ -181,7 +181,9 @@ evaluate() { # targets... (MODELS set)
     for t in "$@"; do    # and requests never thrash the router's model swap
       name=$(basename "$t" .jsonl); dir=$t
       case "$t" in *.jsonl) dir="$ROOT/runs/$name"; new "$dir" "$t" ;; esac
-      j=$((j + 1)); run_eval "$name" "$dir" "$m" > "$TMP/$j" &
+      j=$((j + 1))
+      if [ -n "$SEQUENTIAL" ]; then run_eval "$name" "$dir" "$m" > "$TMP/$j"
+      else run_eval "$name" "$dir" "$m" > "$TMP/$j" & fi
     done
     wait
   done
