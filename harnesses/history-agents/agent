@@ -1,25 +1,26 @@
 #!/bin/sh
 # llama.cpp agents defined entirely by history. An agent is a folder holding
-# template.history.jsonl (seed messages - the only thing an agent may change
-# to improve itself) and history.jsonl (append-only log). Every line of both
-# is the raw verbose dump llama.cpp returns for one call. Nothing else exists:
-# the system prompt, the agent's evals (latest user message 'EVALS [...]') and
-# the whole configuration - model paths, server, params - (latest user message
-# 'CONFIG {...}', an agent's merged over the core agent's in this directory)
-# are re-extracted live from the union of those files on every use.
-# Needs only sh, curl, jq, llama.cpp.
+# one history.jsonl: an append-only log of every raw verbose dump llama.cpp
+# returns for one call. Nothing else exists: the system prompt (last call's
+# system message), the agent's evals (latest user message 'EVALS [...]') and
+# its configuration (latest user message 'CONFIG {...}', an agent's merged
+# over the root agent's in this directory) are re-extracted live from that
+# one file on every use. This repo's own root is itself the single agent:
+# it carries the machine CONFIG/CHECKS, designs other agents, and -- when
+# addressed with a STATE report -- acts as the orchestrator. Needs only sh,
+# curl, jq, llama.cpp.
 #
-#   agent new  <agent-dir> <template.jsonl>      seed an agent from a template
-#   agent call <agent-dir|template.jsonl> "msg" [--system "..."] [-m model]
-#   agent eval <agent-dir|template.jsonl>... [-m model,model]    score matrix
-#   agent improve <agent-dir|template.jsonl> [-m model]   agent rewrites its
-#     own template (system prompt and/or CONFIG params); kept only if the
-#     score across all models strictly improves; its EVALS never change
-#   agent compact <agent-dir|template.jsonl>   re-author the template to the
-#     minimal seed: one EVALS call (preceded by a CONFIG call if one is set)
-#   agent init   zero-input bootstrap: find llama-server and a model, seed the
-#     core agent, its healthchecks (CHECKS) and the main/ orchestrator
-#   agent auto [N] [-m model]   let main/ run the repo: up to N actions
+#   agent new  <agent-dir> <seed.jsonl>          seed an agent from a file
+#   agent call <agent-dir|history.jsonl> "msg" [--system "..."] [-m model]
+#   agent eval <agent-dir|history.jsonl>... [-m model,model]    score matrix
+#   agent improve <agent-dir|history.jsonl> [-m model]   agent rewrites its
+#     own history.jsonl (system prompt and/or CONFIG params) in place; kept
+#     only if the score across all models strictly improves; EVALS never change
+#   agent compact <agent-dir|history.jsonl>   re-author history.jsonl to the
+#     minimal seed: one EVALS call (preceded by CONFIG/CHECKS calls if set)
+#   agent init   zero-input bootstrap: find llama-server and a model, resolve
+#     this machine's CONFIG/CHECKS into history.jsonl, then run a self-check
+#   agent auto [N] [-m model]   let this repo run itself: up to N actions
 #     (EVAL/IMPROVE/NEW/DONE), no human in the loop; safe under cron
 #   agent serve [agent] [port]   chat page for an agent: every refresh
 #     re-extracts its current system prompt; every chat lands in its history
@@ -28,7 +29,7 @@ USE="$ROOT/runs/.lastuse"
 
 records() {
   case "$1" in *.jsonl) cat "$1" 2>/dev/null ;;
-  *) cat "$1/template.history.jsonl" "$1/history.jsonl" 2>/dev/null ;; esac
+  *) cat "$1/history.jsonl" 2>/dev/null ;; esac
 }
 
 UMSG='.__verbose.prompt | split("<|im_start|>user\n")[1] // "" | split("<|im_end|>")[0]'
@@ -103,6 +104,8 @@ call() { # target user model [system]
   resp=$(curl -sf -m 1800 -H 'Content-Type: application/json' -d "$body" \
     "$URL/v1/chat/completions") || exit 1
   date +%s > "$USE"
+  resp=$(printf '%s' "$resp" | jq -c '{choices:[{message:
+    {content:.choices[0].message.content}}], __verbose:{prompt:.__verbose.prompt}}')
   case "$1" in *.jsonl) log=$1 ;; *) log=$1/history.jsonl ;; esac
   mkdir -p "$(dirname "$log")"
   while ! mkdir "$log.lock" 2>/dev/null; do sleep 0.05; done # atomic append
@@ -161,8 +164,8 @@ $(cat "$TMP/fails")Rewrite your system prompt so these cases pass without losing
   newcfg=$(printf '%s' "$reply" | sed -n 's/^CONFIG //p' | tail -n 1)
   newsys=$(printf '%s' "$reply" | grep -v '^CONFIG ')
   [ -n "$(printf '%s' "$newsys" | tr -d '[:space:]')" ] || newsys=$(sysprompt "$inst")
-  case "$newsys" in *template.history.jsonl*) ;; # keep the self-improvement
-  *) newsys="$newsys You are defined entirely by your template.history.jsonl. You may improve yourself only by updating template.history.jsonl, the seed messages that define you; history.jsonl is an append-only record you can never change." ;;
+  case "$newsys" in *history.jsonl*) ;; # keep the self-improvement contract
+  *) newsys="$newsys You are defined entirely by your history.jsonl. You may never rewrite yourself mid-call; you improve only via ./agent improve, which rewrites history.jsonl in place and keeps it only if your evals score strictly improves. Your capabilities are exactly what your EVALS test: whenever you gain one, add an EVALS case that pins it in the same rewrite." ;;
   esac
   cand="$ROOT/runs/$name.cand"
   rm -rf "$cand" "$cand.jsonl"
@@ -171,11 +174,11 @@ $(cat "$TMP/fails")Rewrite your system prompt so these cases pass without losing
   call "$cand.jsonl" "EVALS $evals" "$MODEL" "$newsys" >/dev/null
   new "$cand" "$cand.jsonl"
   set -- $(score "$cand" "$TMP/fails2"); aok=$1
-  dest=$t; case "$t" in *.jsonl) ;; *) dest=$t/template.history.jsonl ;; esac
+  dest=$t; case "$t" in *.jsonl) ;; *) dest=$t/history.jsonl ;; esac
   if [ "$aok" -gt "$bok" ]; then
-    cp "$cand.jsonl" "$dest"; echo "$name: $bok/$n -> $aok/$n (template updated)"
+    cp "$cand.jsonl" "$dest"; echo "$name: $bok/$n -> $aok/$n (history.jsonl updated)"
   else
-    echo "$name: $bok/$n -> $aok/$n (kept current template)"
+    echo "$name: $bok/$n -> $aok/$n (kept current history.jsonl)"
   fi
 }
 
@@ -185,14 +188,15 @@ evaluate() { # targets... (MODELS set)
   TMP=$(mktemp -d) j=0; trap 'rm -rf "$TMP"' EXIT; trap 'exit 1' INT TERM
   ensure
   for m in $MODELS; do   # one model at a time: only one is ever in memory,
-    for t in "$@"; do    # and requests never thrash the router's model swap
+    pids=''             # and requests never thrash the router's model swap
+    for t in "$@"; do
       name=$(basename "$t" .jsonl); dir=$t
       case "$t" in *.jsonl) dir="$ROOT/runs/$name"; new "$dir" "$t" ;; esac
       j=$((j + 1))
       if [ -n "$SEQUENTIAL" ]; then run_eval "$name" "$dir" "$m" > "$TMP/$j"
-      else run_eval "$name" "$dir" "$m" > "$TMP/$j" & fi
+      else run_eval "$name" "$dir" "$m" > "$TMP/$j" & pids="$pids $!"; fi
     done
-    wait
+    [ -z "$pids" ] || wait $pids # only the jobs just spawned, never the reaper
   done
   cat "$TMP"/* | awk -v models="$MODELS" '
     { s[$1 "\t" $2] = $3; if (!($1 in seen)) { seen[$1]; names[++nn] = $1 } }
@@ -212,7 +216,7 @@ evaluate() { # targets... (MODELS set)
     }'
 }
 
-compact() { # target: replay the extracted state into a minimal template
+compact() { # target: replay the extracted state into a minimal history.jsonl
   sys=$(sysprompt "$1") || exit 1
   evals=$(cases "$1") || exit 1
   mycfg=$(latest "$1" CONFIG) mychk=$(latest "$1" CHECKS)
@@ -220,28 +224,21 @@ compact() { # target: replay the extracted state into a minimal template
   [ -z "$mycfg" ] || call "$out" "CONFIG $mycfg" "$MODEL" "$sys" >/dev/null
   [ -z "$mychk" ] || call "$out" "CHECKS $mychk" "$MODEL" "$sys" >/dev/null
   call "$out" "EVALS $evals" "$MODEL" "$sys" >/dev/null
-  dest=$1; case "$1" in *.jsonl) ;; *) dest=$1/template.history.jsonl ;; esac
+  dest=$1; case "$1" in *.jsonl) ;; *) dest=$1/history.jsonl ;; esac
   mv "$out" "$dest" &&
     echo "$(basename "$1" .jsonl): compacted to $(grep -c . "$dest") line(s)"
 }
 
 new() { # seeding is a fresh start: a new agent inherits no previous log
-  mkdir -p "$1" && cp "$2" "$1/template.history.jsonl" &&
-    rm -f "$1/history.jsonl"
+  mkdir -p "$1" && cp "$2" "$1/history.jsonl"
 }
 
-CORESYS="You are the core agent of a system in which an agent is a folder of llama.cpp message dumps: template.history.jsonl (the seed messages, the only thing an agent may ever change) unioned with history.jsonl (an append-only log of every call). An agent's system prompt, and its evals (the latest user message starting with EVALS), are extracted live from that union alone - nothing else defines an agent. You design agents: you write system prompts and EVALS messages for new template histories. Guide every solution toward what needs no setup, runs identically on Linux, macOS and Windows, and starts instantly: plain sh, curl and jq against a local llama-server - never Python or heavier runtimes. You have no tools, no skills, no subagents: only this system prompt and the user's message. You are defined entirely by your template.history.jsonl. You may improve yourself only by updating template.history.jsonl, the seed messages that define you; history.jsonl is an append-only record you can never change."
-COREEVALS='[{"user":"Which single file may you change to improve yourself? Reply with the file name only.","expect":"template\\.history\\.jsonl"},{"user":"Do you have any tools, skills or subagents? Answer Yes or No.","expect":"^\\s*No\\.?\\s*$"},{"user":"Write a system prompt for an agent that converts temperatures between Celsius and Fahrenheit. Reply with the system prompt only.","expect":"celsius[\\s\\S]*fahrenheit|fahrenheit[\\s\\S]*celsius"}]'
-MAINSYS='You are main, the orchestrator agent of a history-agents repo. Every message you receive is a STATE report: the list of agent templates and recent action outcomes. Reply with exactly one action and nothing else. Actions: DONE when nothing needs work; EVAL <template> to measure one; IMPROVE <template> to run its self-improvement round; or NEW <category>/<name> to create one new agent, exactly like this example (first line the action with one lowercase category/name, then the new agent system prompt, then one final EVALS line with 3-5 JSON cases whose expect is a regex the right answer matches):
-NEW classify/sentiment
-You classify the sentiment of text. Reply with exactly one word: positive, negative, or neutral.
-EVALS [{"user":"I love this product!","expect":"^\\s*positive\\s*$"},{"user":"This is terrible.","expect":"^\\s*negative\\s*$"},{"user":"The box contains six items.","expect":"^\\s*neutral\\s*$"}]
-Prefer IMPROVE on the weakest recent scores; use NEW only for a missing capability; when the template list is empty, build foundational agents (classify, extract, format) with NEW. Templates are files templates/<category>/<name>.jsonl; you may also EVAL or IMPROVE template.history.jsonl (the core) or main (yourself). You have no tools, no skills, no subagents: only this system prompt and the user message. You are defined entirely by your template.history.jsonl. You may improve yourself only by updating template.history.jsonl, the seed messages that define you; history.jsonl is an append-only record you can never change.'
-MAINEVALS='[{"user":"STATE\ntemplates:\ntemplates/format/yes-no.jsonl\ntemplates/extract/dates.jsonl\nrecent outcomes:\nEVAL templates/format/yes-no.jsonl -> yes-no 2/8\nEVAL templates/extract/dates.jsonl -> dates 8/8\nReply with exactly one action.","expect":"IMPROVE templates/format/yes-no\\.jsonl"},{"user":"STATE\ntemplates:\n(none)\nrecent outcomes:\n(none)\nReply with exactly one action.","expect":"NEW [a-z0-9-]+/[a-z0-9-]+"},{"user":"STATE\ntemplates:\ntemplates/format/yes-no.jsonl\nrecent outcomes:\nIMPROVE templates/format/yes-no.jsonl -> yes-no: already perfect (8/8)\nReply with exactly one action.","expect":"^\\s*DONE\\s*$"}]'
-
-init() { # zero-input bootstrap: binary -> model -> core -> checks -> main
+init() { # zero-input bootstrap: binary -> model -> resolve CONFIG/CHECKS -> self-check
   for c in curl jq; do command -v "$c" >/dev/null 2>&1 ||
     { echo "init needs $c: brew/apt/winget install $c" >&2; exit 1; }; done
+  [ -f "$ROOT/history.jsonl" ] || { echo \
+    "no history.jsonl here: fetch it alongside agent -- curl -fsSL https://raw.githubusercontent.com/tyler-jewell/jewell-labs/main/harnesses/history-agents/history.jsonl -o history.jsonl -- then re-run ./agent init" >&2
+    exit 1; }
   bin=$(command -v llama-server 2>/dev/null) || bin=''
   [ -n "$bin" ] || for p in /opt/homebrew/bin /usr/local/bin /home/linuxbrew/.linuxbrew/bin; do
     [ -x "$p/llama-server" ] && { bin=$p/llama-server; break; }; done
@@ -257,20 +254,19 @@ init() { # zero-input bootstrap: binary -> model -> core -> checks -> main
       { echo "download failed: re-run ./agent init to resume" >&2; exit 1; }
   fi
   resolve "$ROOT"
-  [ -n "$(latest "$ROOT" CONFIG)" ] || call "$ROOT/template.history.jsonl" \
+  sys=$(sysprompt "$ROOT") || exit 1
+  [ -n "$(latest "$ROOT" CONFIG)" ] || call "$ROOT" \
     "CONFIG $(jq -cn --arg b "$bin" --arg p "$gguf" '{binary:$b, host:"127.0.0.1",
       port:18080, idle_ttl:600, models_max:1, default_model:"qwen3-0.6b",
       models:{"qwen3-0.6b":{path:$p, ctx:8192, params:{temperature:0.6, top_p:0.95,
-      top_k:20, max_tokens:2048, seed:42, cache_prompt:false}}}}')" '' "$CORESYS" >/dev/null
-  [ -n "$(latest "$ROOT" EVALS)" ] ||
-    call "$ROOT/template.history.jsonl" "EVALS $COREEVALS" '' "$CORESYS" >/dev/null
-  [ -n "$(latest "$ROOT" CHECKS)" ] || call "$ROOT/template.history.jsonl" \
+      top_k:20, max_tokens:2048, seed:42, cache_prompt:false}}}}')" '' "$sys" >/dev/null
+  [ -n "$(latest "$ROOT" CHECKS)" ] || call "$ROOT" \
     "CHECKS $(jq -cn --arg b "$bin" --arg p "$gguf" \
       '["command -v jq","command -v curl",("test -x "+$b),("test -s "+$p)]')" \
-    '' "$CORESYS" >/dev/null
-  [ -f "$ROOT/main/template.history.jsonl" ] ||
-    call "$ROOT/main/template.history.jsonl" "EVALS $MAINEVALS" '' "$MAINSYS" >/dev/null
-  echo "ready: core template.history.jsonl + main/ orchestrator"
+    '' "$sys" >/dev/null
+  echo "ready: $ROOT/history.jsonl -- running self-check evals..."
+  resolve "$ROOT"; MODEL='' MODELS=$(cfg '.models | keys_unsorted | join(" ")')
+  evaluate "$ROOT"
   echo "  chat:      ./agent serve"
   echo "  autonomy:  ./agent auto 3"
   echo "  schedule:  ( crontab -l 2>/dev/null; echo '0 3 * * * cd $ROOT && ./agent auto 5 >> runs/auto.log 2>&1' ) | crontab -"
@@ -291,9 +287,9 @@ preflight() { # session start: run the latest CHECKS; on failure, set up again
 
 EVOK='type=="array" and length>0 and all(.[]; (.user|type=="string") and (.expect|type=="string"))'
 
-auto() { # [N]: runner-mediated loop; main decides, the runner acts and reports
-  [ -f "$ROOT/main/template.history.jsonl" ] ||
-    { echo "no main/ agent: run ./agent init first" >&2; exit 1; }
+auto() { # [N]: runner-mediated loop; self decides, the runner acts and reports
+  [ -f "$ROOT/history.jsonl" ] ||
+    { echo "no history.jsonl: run ./agent init first" >&2; exit 1; }
   mkdir -p "$ROOT/runs"
   mkdir "$ROOT/runs/auto.lock" 2>/dev/null ||
     { echo "another auto run is active" >&2; exit 0; }
@@ -301,10 +297,10 @@ auto() { # [N]: runner-mediated loop; main decides, the runner acts and reports
   n=${1:-5} i=0 out=''
   while [ "$i" -lt "$n" ]; do
     i=$((i + 1))
-    resolve "$ROOT/main"
-    mem=$( { records "$ROOT/main" | jq -r "$UMSG" | sed -n 's/^last outcome: //p'
+    resolve "$ROOT"
+    mem=$( { records "$ROOT" | jq -r "$UMSG" | sed -n 's/^last outcome: //p'
              [ -z "$out" ] || printf '%s\n' "$out"; } | grep -v '^(none)$' | tail -n 5)
-    reply=$(call "$ROOT/main" "STATE
+    reply=$(call "$ROOT" "STATE
 templates:
 $( (cd "$ROOT" && ls templates/*/*.jsonl 2>/dev/null) || echo '(none)')
 recent outcomes:
@@ -315,13 +311,13 @@ Reply with exactly one action." "$MODEL") || reply=''
     act=$(printf '%s\n' "$reply" | grep -m 1 -E '^(DONE|EVAL |IMPROVE |NEW )' |
       sed 's/[[:space:]]*$//' | grep . || echo MALFORMED)
     case $act in
-    DONE) echo "main: DONE after $((i - 1)) action(s)"; return ;;
-    'EVAL '*|'IMPROVE '*) t=${act#* } ok=''
-      case $t in template.history.jsonl|main) ok=1 ;;
-      templates/*.jsonl) case $t in *..*|*[!a-z0-9./-]*) ;; *) ok=1 ;; esac ;; esac
+    DONE) echo "self: DONE after $((i - 1)) action(s)"; return ;;
+    'EVAL '*|'IMPROVE '*) t=${act#* } ok='' tgt=''
+      case $t in self) ok=1 tgt=$ROOT ;;
+      templates/*.jsonl) case $t in *..*|*[!a-z0-9./-]*) ;; *) ok=1 tgt=$ROOT/$t ;; esac ;; esac
       if [ -n "$ok" ]; then
         v=$(printf %s "${act%% *}" | tr 'A-Z' 'a-z')
-        out="$act -> $("$0" "$v" "$ROOT/$t" 2>&1)"
+        out="$act -> $("$0" "$v" "$tgt" 2>&1)"
       else out="$act -> invalid target (skipped)"; fi ;;
     'NEW '*) name=${act#NEW } ok=''
       case $name in *..*|*[!a-z0-9/-]*|*/*/*|/*|*/) ;; */*) ok=1 ;; esac
@@ -330,9 +326,9 @@ Reply with exactly one action." "$MODEL") || reply=''
       else # payload may ride the reply; small models author it in follow-ups
         ev=$(printf '%s\n' "$reply" | sed -n 's/^EVALS //p' | tail -n 1)
         sys=$(printf '%s\n' "$reply" | sed -n '/^NEW /,$p' | grep -v '^EVALS \|^NEW ')
-        [ -n "$(printf %s "$sys" | tr -d '[:space:]')" ] || sys=$(call "$ROOT/main" \
+        [ -n "$(printf %s "$sys" | tr -d '[:space:]')" ] || sys=$(call "$ROOT" \
           "Write the system prompt for the new agent $name. It must tell the agent exactly what to do and to reply in a strict, short format a regex can check. Reply with the system prompt text only." "$MODEL")
-        printf '%s' "$ev" | jq -e "$EVOK" >/dev/null 2>&1 || ev=$(call "$ROOT/main" \
+        printf '%s' "$ev" | jq -e "$EVOK" >/dev/null 2>&1 || ev=$(call "$ROOT" \
           "Write the evals for the new agent $name, whose system prompt is: $sys
 Reply with only a JSON array of 3 to 5 cases like [{\"user\":\"...\",\"expect\":\"<regex the right answer matches>\"}] and nothing else." "$MODEL" |
           tr '\n' ' ' | sed -n 's/.*\(\[.*\]\).*/\1/p')
@@ -347,7 +343,7 @@ Reply with only a JSON array of 3 to 5 cases like [{\"user\":\"...\",\"expect\":
     out=$(printf '%s' "$out" | tr '\n' ' ' | sed 's/<|im_/<im_/g' | head -c 400)
     echo "[$i/$n] $out"
   done
-  echo "main: action budget $n spent"
+  echo "self: action budget $n spent"
 }
 
 serve_one() { # one HTTP request on stdin -> one response on stdout
@@ -381,7 +377,7 @@ log.insertAdjacentHTML("beforeend","<div class=ag>%s: "+t.replace(/</g,"&lt;")+"
 }
 
 serve() { # [target] [port]: chat page; each request re-extracts the prompt
-  t=${1:-$ROOT/main} port=${2:-8080}
+  t=${1:-$ROOT} port=${2:-8080}
   preflight
   [ -e "$t" ] || [ -e "$ROOT/$t" ] && { [ -e "$t" ] || t="$ROOT/$t"; } ||
     { echo "no such agent: $t" >&2; exit 1; }
@@ -414,13 +410,13 @@ improve)
   resolve "$ROOT"
   MODELS=$(cfg '.models | keys_unsorted | join(" ")')
   MODEL=${MODEL:-$(cfg .default_model)}
-  improve "${1:?usage: agent improve <agent-dir|template.jsonl>}" ;;
+  improve "${1:?usage: agent improve <agent-dir|history.jsonl>}" ;;
 compact)
   resolve "$1"
   MODEL=${MODEL:-$(cfg .default_model)}
-  compact "${1:?usage: agent compact <agent-dir|template.jsonl>}" ;;
+  compact "${1:?usage: agent compact <agent-dir|history.jsonl>}" ;;
 init) init ;;
 auto) preflight; auto "$@" ;;
 serve) serve "$@" ;;
-*) sed -n '2,25p' "$0" | cut -c3-; exit 1 ;;
+*) sed -n '2,26p' "$0" | cut -c3-; exit 1 ;;
 esac
