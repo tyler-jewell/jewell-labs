@@ -29,9 +29,13 @@ Verified end-to-end on macOS (zsh/sh) and in a clean Ubuntu container (dash).
             "params": {"temperature": 0, "max_tokens": 2048, "seed": 42}}}}'
 ```
 
-All models are served by one llama-server router process with at most one
-model in memory at a time; an idle reaper kills the server and its model
-workers after `idle_ttl` seconds (default 600) without a call.
+All models are served by one llama-server router process holding at most
+`models_max` models in memory (CONFIG key, default 1 — set it to the number
+of registered models if RAM allows to skip load/unload between rounds); an
+idle reaper kills the server and its model workers after `idle_ttl` seconds
+(default 600) without a call. A model's optional CONFIG `server {...}`
+object passes extra llama-server settings (e.g. `parallel`, `flash-attn`)
+straight into its preset entry.
 
 Only the latest CONFIG message counts. The core agent's must therefore be
 complete — to change one core setting, send the whole config again with that

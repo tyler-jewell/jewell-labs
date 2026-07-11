@@ -203,6 +203,29 @@ re-run T2 (the fixpoint must cover the final template set after T8/T9).
 - Sanity check: `./agent eval templates/format/yes-no.jsonl -m qwen3-0.6b`
   → `4/4`. Server processes after `idle_ttl` (600s): zero.
 
+- [x] **T12 — Fastest evals (user, 2026-07-10).** Optimize the llama.cpp
+  configuration so evals — quick-eval first — run as fast as this machine
+  allows, maximizing compute use (32GB Apple Silicon). Levers: per-model
+  parallel slots, batching, keeping models resident (router `--models-max`),
+  flash attention. *Accept:* measured quick-eval wall-time improvement with
+  an unchanged results table; SEQUENTIAL=1 stays available for
+  bit-reproducible benchmark claims.
+  *(2026-07-10: measured everything. Profile: 0.6b round 10.5s, 4b 13.5s,
+  35b 107s — 95% of the 35b round is locate-fn-0's ~5k-token think chain at
+  48 tok/s, the Metal decode floor for this A3B Q3 (flash-attn already
+  auto-on; explicit on: gen unchanged, prompt 417→460 tok/s). Rejected with
+  evidence: parallel slots (2m55 vs 2m28 — batched decode splits the GPU
+  while the bottleneck is one chain, and it flips marginal cases);
+  0.6b-as-draft speculative decoding for the 35b (worker fails to load:
+  cross-generation vocab mismatch). Adopted: `models_max` CONFIG key
+  (router --models-max; core now 3 — user directive supersedes the
+  "--models-max 1" invariant wording; reaper unchanged, so no idle servers)
+  and a per-model `server {...}` CONFIG passthrough into the preset as the
+  durable tuning surface. Result: all three models resident, quick-eval
+  2m15–2m25 with the table unchanged, and the real iteration win —
+  single-model TDD loops stay warm: `./quick-eval.sh -m qwen3-0.6b` = 10s,
+  `-m qwen3-4b` = 13s. Committed with this change.)*
+
 ## Campaign complete — final state (2026-07-10)
 
 Definition of done met:

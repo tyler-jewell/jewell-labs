@@ -49,10 +49,11 @@ ensure() { # one router server for all models; at most one model in memory
   mkdir -p "$ROOT/runs"
   healthy && return
   cfg '.models | to_entries[] |
-    "[\(.key)]\nmodel = \(.value.path)\nctx-size = \(.value.ctx)\n"' \
+    "[\(.key)]\nmodel = \(.value.path)\nctx-size = \(.value.ctx)\n"
+    + ([(.value.server // {}) | to_entries[] | "\(.key) = \(.value)\n"] | add // "")' \
     > "$ROOT/runs/preset.ini"
   "$(cfg '.binary // "llama-server"')" --models-preset "$ROOT/runs/preset.ini" \
-    --models-max 1 --port "$(cfg '.port // 18080')" -v >/dev/null 2>&1 &
+    --models-max "$(cfg '.models_max // 1')" --port "$(cfg '.port // 18080')" -v >/dev/null 2>&1 &
   srv=$!
   k=0; until healthy; do
     k=$((k + 1)); [ "$k" -gt 60 ] && { echo "server failed to start" >&2; exit 1; }
