@@ -1,5 +1,6 @@
 # Portability proof: the whole system is `agent` + sh + curl + jq + llama.cpp.
-# Build and run from a clean checkout (any small chat GGUF works):
+# Build and run from this directory (harnesses/history-agents/) of a clean
+# checkout (any small chat GGUF works):
 #   docker build -t history-agents-test .
 #   docker run --rm -v "$PWD":/repo:ro \
 #     -v /path/to/model.gguf:/model.gguf:ro history-agents-test
