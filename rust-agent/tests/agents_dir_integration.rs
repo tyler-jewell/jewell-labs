@@ -99,6 +99,14 @@ fn core_agent_can_invoke_every_registered_tool() {
                 "session_id": "orch-smoke-2",
                 "messages": [{"role": "user", "content": "hi"}]
             }),
+            "run_eval" => json!({"agent_id": "tutoring/math-tutor"}),
+            "learn" => json!({"targets": ["tutoring/math-tutor"], "dry_run": true}),
+            "research_models" => json!({"list_sources_only": true}),
+            "write_agent" => json!({
+                "id": "lab/smoke-write",
+                "markdown": "---\nschema_version: 1\nname: smoke-write\ndescription: t\ndefault_model: qwen3-0.6b\nrole: agent\ntools:\n  - list_tools\n---\n\nbody\n",
+                "require_eval": false
+            }),
             other => panic!("no smoke args for tool {other}"),
         };
         let result = invoke_tool(&ctx, name, &args);
@@ -137,7 +145,7 @@ fn specialty_math_tutor_if_present_is_restricted() {
         tutor.frontmatter.tools.clone(),
     );
     let denied = invoke_tool(&ctx, "list_agents", &json!({}));
-    assert!(!denied.ok);
-    let allowed = invoke_tool(&ctx, "app_status", &json!({}));
+    assert!(!denied.ok, "specialty must not call tools outside allowlist");
+    let allowed = invoke_tool(&ctx, "list_tools", &json!({}));
     assert!(allowed.ok, "{:?}", allowed.result);
 }

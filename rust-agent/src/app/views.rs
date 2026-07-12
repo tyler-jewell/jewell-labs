@@ -1,7 +1,5 @@
 //! View-model types for the agent console shell.
 
-use crate::tool_fs::ToolFileEntry;
-
 #[derive(Clone, Debug, Default)]
 pub struct AgentRowView {
     pub id: String,
@@ -22,13 +20,7 @@ pub struct CategoryAgents {
     pub agents: Vec<AgentRowView>,
 }
 
-#[derive(Clone, Debug)]
-pub struct CategoryTools {
-    pub category: String,
-    pub tools: Vec<ToolFileEntry>,
-}
-
-/// What the main panel is showing.
+/// What the main panel is showing (single active agent; Empty only during redirect).
 #[derive(Clone, Debug)]
 pub enum ShellFocus {
     Empty,
@@ -40,10 +32,5 @@ pub enum ShellFocus {
         system_body: String,
         registry_json: String,
         allowed_tools_json: String,
-    },
-    Tool {
-        category: String,
-        name: String,
-        detail_json: String,
     },
 }

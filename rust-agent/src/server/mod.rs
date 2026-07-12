@@ -24,7 +24,6 @@ pub fn build_router(state: AppState) -> Router {
     Router::new()
         .route("/", get(pages::home))
         .route("/agents/{category}/{name}", get(pages::agent_page))
-        .route("/tools/{category}/{name}", get(pages::tool_page))
         .route(
             "/api/agents",
             get(api_agents::list_agents_api).post(api_agents::create_agent),

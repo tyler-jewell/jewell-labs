@@ -15,6 +15,9 @@ import {
 
 const $ = (sel, el = document) => el.querySelector(sel);
 
+import { initToolChips } from "./js/tools.js";
+initToolChips();
+
 async function renderSessions(agent) {
   const list = $("#session-list");
   if (!list) return;

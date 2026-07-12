@@ -5,6 +5,9 @@ pub mod agents;
 pub mod app;
 pub mod chat;
 pub mod eval;
+pub mod jail;
+pub mod learn;
+pub mod model_research;
 pub mod nav;
 pub mod paths;
 pub mod registry;
@@ -23,11 +26,17 @@ pub mod tools;
 pub use agent_run::{run_agent_with_tools, run_tool_plan, AgentRunResult, ToolRound};
 pub use agents::{
     agent_id, certify_agent_file, list_agents, load_agent, parse_agent_ref, path_is_under_agents,
-    resolve_agent_path, validate_segment, validate_stem, write_agent_file, AgentListItem,
-    AgentsError, CORE_AGENT_ID, CORE_AGENT_TOOLS,
+    resolve_agent_path, validate_segment, validate_stem, write_agent_file,
+    write_agent_file_unlocked, AgentListItem, AgentsError, CORE_AGENT_ID, CORE_AGENT_TOOLS,
 };
+pub use jail::{agent_file_rel, JailError, WriteJail};
+pub use learn::{learn_improve, LearnReport, LearnRequest};
+pub use model_research::{run_model_research, ModelResearchReport};
 pub use chat::{complete_chat, stream_chat, ChatEndpoint, ChatError, ChatMessage, ChatRequest};
-pub use eval::{run_full_eval, write_report, EvalReport, GroundTruth};
+pub use eval::{
+    eval_all_agents, require_green_eval, run_agent_eval, run_full_eval, write_eval_report,
+    write_report, EvalError, EvalReport, GroundTruth,
+};
 pub use nav::{
     agent_tab_def, default_agent_tab, group_by_category, is_valid_agent_tab, normalize_agent_tab,
     AgentTabDef, AGENT_TABS,
@@ -41,7 +50,7 @@ pub use schema::{
 pub use sessions::{
     ChatSession, MessageHit, SessionError, SessionMessage, SessionStore, SessionSummary,
 };
-pub use tool_fs::{list_tools_from_fs, ToolFileEntry};
+pub use tool_fs::{list_agent_local_tools, list_tools_from_fs, ToolFileEntry};
 pub use tools::{
     all_tool_names, builtin_tools, extract_tool_call, filter_tools_for_agent, invoke_tool,
     invoke_tool_call, resolve_allowlist, system_with_tools, tools_system_appendix,

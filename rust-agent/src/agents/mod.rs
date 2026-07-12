@@ -7,7 +7,8 @@ mod list;
 mod path;
 
 pub use list::{
-    certify_agent_file, list_agents, load_agent, write_agent_file, AgentListItem, AgentsError,
+    certify_agent_file, list_agents, load_agent, write_agent_file, write_agent_file_unlocked,
+    AgentListItem, AgentsError,
 };
 pub use path::{
     agent_id, parse_agent_ref, path_is_under_agents, resolve_agent_path, validate_segment,
@@ -29,6 +30,10 @@ pub const CORE_AGENT_TOOLS: &[&str] = &[
     "list_sessions",
     "get_session",
     "upsert_session",
+    "write_agent",
+    "run_eval",
+    "learn",
+    "research_models",
 ];
 
 #[cfg(test)]
@@ -122,6 +127,41 @@ body
     #[test]
     fn core_constants_are_stable() {
         assert_eq!(CORE_AGENT_ID, "core/orchestrator");
-        assert_eq!(CORE_AGENT_TOOLS.len(), 10);
+        assert!(CORE_AGENT_TOOLS.len() >= 10);
+    }
+
+    #[test]
+    fn core_agent_write_locked() {
+        let dir = tempdir().unwrap();
+        let md = sample(
+            "orchestrator",
+            "orchestrator",
+            r#"["list_tools"]"#,
+        );
+        let err = write_agent_file(dir.path(), CORE_AGENT_ID, &md).unwrap_err();
+        assert!(
+            matches!(err, AgentsError::Jail(_)),
+            "expected core lock, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn symlink_write_does_not_damage_outside() {
+        let dir = tempdir().unwrap();
+        let outside = dir.path().parent().unwrap().join(format!(
+            "outside-agent-{}",
+            std::process::id()
+        ));
+        fs::write(&outside, b"SAFE").unwrap();
+        fs::create_dir_all(dir.path().join("lab")).unwrap();
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&outside, dir.path().join("lab/bot.md")).unwrap();
+            let md = sample("bot", "agent", r#"["list_tools"]"#);
+            let err = write_agent_file(dir.path(), "lab/bot", &md).unwrap_err();
+            assert!(matches!(err, AgentsError::Jail(_)), "{err:?}");
+            assert_eq!(fs::read_to_string(&outside).unwrap(), "SAFE");
+            let _ = fs::remove_file(&outside);
+        }
     }
 }

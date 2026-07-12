@@ -1,15 +1,18 @@
-//! Core agent eval: complete app introspection via built-in tools.
+//! Agent evals: structural tool_plan (CI gate) + optional LLM track.
 //!
-//! Two tracks:
-//! 1. **tool_plan** — orchestrator allowlist runs every introspect tool; fact-check 100%
-//! 2. **llm_agent** — live model drives tool calls; fact-check tool results + answer
+//! Host-runnable for any agent via [`agent_eval::run_agent_eval`] with depth ≤ 1.
 
+mod agent_eval;
 mod cases;
 mod ground_truth;
 mod llm_case;
 mod runner;
 mod scoring;
 
+pub use agent_eval::{
+    dataset_path_for, eval_all_agents, parse_dataset, require_green_eval,
+    run_agent_eval, write_eval_report, DatasetCase, EvalError,
+};
 pub use cases::{full_introspection_plan, orchestrator_ctx, run_tool_plan_case};
 pub use ground_truth::{CaseResult, EvalReport, EvalSummary, FactResult, GroundTruth};
 pub use llm_case::run_llm_case;
@@ -36,6 +39,9 @@ mod tests {
         );
         let unique: std::collections::BTreeSet<_> =
             case.tools_called.iter().cloned().collect();
-        assert_eq!(unique.len(), gt.tool_count);
+        // run_eval intentionally not invoked in core self-plan (depth guard)
+        assert_eq!(unique.len(), gt.tool_count - 1);
+        assert!(unique.iter().all(|n| n != "run_eval"));
+        assert!(gt.tool_names.contains("run_eval"));
     }
 }

@@ -4,6 +4,7 @@
 //! tools listed in frontmatter `tools:` (or `*` for all).
 
 pub mod introspect;
+pub mod mutate;
 pub mod sessions;
 
 mod allowlist;
@@ -72,7 +73,7 @@ hello
         let tools = builtin_tools();
         assert!(tools.iter().any(|t| t.category == "introspect"));
         assert!(tools.iter().any(|t| t.category == "sessions"));
-        assert_eq!(tools.len(), 10); // lean core surface
+        assert_eq!(tools.len(), 14); // lean core + mutate
     }
 
     #[test]

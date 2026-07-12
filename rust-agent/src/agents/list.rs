@@ -3,6 +3,7 @@
 use super::path::{
     agent_id, parse_agent_ref, path_is_under_agents, resolve_agent_path, validate_segment,
 };
+use crate::jail::{agent_file_rel, JailError, WriteJail};
 use crate::schema::{
     certify_agent_markdown, parse_frontmatter, AgentDocument, CertificationResult, SchemaError,
 };
@@ -22,6 +23,10 @@ pub enum AgentsError {
     InvalidStem(String),
     #[error("path escape rejected for '{0}'")]
     PathEscape(String),
+    #[error("jail: {0}")]
+    Jail(#[from] JailError),
+    #[error("publish blocked: {0}")]
+    PublishBlocked(String),
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
@@ -161,38 +166,43 @@ pub fn certify_agent_file(
     Ok(certify_agent_markdown(&text))
 }
 
-/// Create `agents/{category}/{name}.md`. `agent_ref` must be `category/name`.
+/// Create/replace `agents/{category}/{name}.md` via pre-open path jail.
+/// Core agent (`core/orchestrator`) is write-locked by default.
 pub fn write_agent_file(
     agents_dir: impl AsRef<Path>,
     agent_ref: &str,
     markdown: &str,
 ) -> Result<PathBuf, AgentsError> {
     let dir = agents_dir.as_ref();
-    let (category, _name) = parse_agent_ref(agent_ref)?;
-    fs::create_dir_all(dir.join(&category))?;
-    let path = resolve_agent_path(dir, agent_ref)?;
-
+    parse_agent_ref(agent_ref)?;
     let cert = certify_agent_markdown(markdown);
     if !cert.ok {
         return Err(AgentsError::Schema(SchemaError::CertificationFailed(
             cert.errors.join("; "),
         )));
     }
+    let jail = WriteJail::agents_dir(dir);
+    jail.assert_not_core_lock(agent_ref)?;
+    let rel = agent_file_rel(agent_ref)?;
+    Ok(jail.write_file(&rel, markdown.as_bytes())?)
+}
 
-    let dir_canon = fs::canonicalize(dir).unwrap_or_else(|_| dir.to_path_buf());
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-        let parent_canon = fs::canonicalize(parent).unwrap_or_else(|_| parent.to_path_buf());
-        if !parent_canon.starts_with(&dir_canon) {
-            return Err(AgentsError::PathEscape(agent_ref.to_string()));
-        }
+/// Write without core lock (host/bootstrap only — not agent tools).
+pub fn write_agent_file_unlocked(
+    agents_dir: impl AsRef<Path>,
+    agent_ref: &str,
+    markdown: &str,
+) -> Result<PathBuf, AgentsError> {
+    let dir = agents_dir.as_ref();
+    parse_agent_ref(agent_ref)?;
+    let cert = certify_agent_markdown(markdown);
+    if !cert.ok {
+        return Err(AgentsError::Schema(SchemaError::CertificationFailed(
+            cert.errors.join("; "),
+        )));
     }
-
-    fs::write(&path, markdown)?;
-    let written = fs::canonicalize(&path).unwrap_or(path);
-    if !written.starts_with(&dir_canon) {
-        let _ = fs::remove_file(&written);
-        return Err(AgentsError::PathEscape(agent_ref.to_string()));
-    }
-    Ok(written)
+    let mut jail = WriteJail::agents_dir(dir);
+    jail.locked_agent_ids.clear();
+    let rel = agent_file_rel(agent_ref)?;
+    Ok(jail.write_file(&rel, markdown.as_bytes())?)
 }

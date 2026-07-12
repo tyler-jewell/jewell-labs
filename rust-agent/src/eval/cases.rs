@@ -62,6 +62,24 @@ pub fn full_introspection_plan(_gt: &GroundTruth) -> Vec<(String, Value)> {
                 "agent_id": CORE_AGENT_ID
             }),
         ),
+        // mutate tools — dry paths only. Do NOT call run_eval here: core self-eval
+        // sets eval depth=1, so nested run_eval would always fail closed.
+        (
+            "learn".into(),
+            json!({"targets": ["tutoring/math-tutor"], "dry_run": true}),
+        ),
+        (
+            "research_models".into(),
+            json!({"list_sources_only": true}),
+        ),
+        (
+            "write_agent".into(),
+            json!({
+                "id": "lab/eval-write-probe",
+                "markdown": "---\nschema_version: 1\nname: eval-write-probe\ndescription: probe\ndefault_model: qwen3-0.6b\nrole: agent\ntools:\n  - list_tools\n---\n\nprobe body MUST_EVAL\n",
+                "require_eval": false
+            }),
+        ),
     ]
 }
 
@@ -70,7 +88,12 @@ pub fn run_tool_plan_case(ctx: &ToolContext, gt: &GroundTruth) -> CaseResult {
     let plan = full_introspection_plan(gt);
     let run = run_tool_plan(ctx, &plan);
     let tool_names = all_tool_names();
-    let require: Vec<&str> = tool_names.iter().map(|s| s.as_str()).collect();
+    // require every registered tool except run_eval (self-eval depth guard)
+    let require: Vec<&str> = tool_names
+        .iter()
+        .map(|s| s.as_str())
+        .filter(|n| *n != "run_eval")
+        .collect();
     let mut facts = score_introspection(gt, &run, &require);
 
     // Core allowlist matches registry and frontmatter
@@ -115,6 +138,18 @@ pub fn run_tool_plan_case(ctx: &ToolContext, gt: &GroundTruth) -> CaseResult {
         search_ok,
         "search count>=1",
         if search_ok { "ok" } else { "missing" },
+    ));
+    // run_eval is registered (not invoked in self-eval plan — avoids depth re-entry)
+    facts.push(fact(
+        "run_eval_registered",
+        "run_eval in registry",
+        tool_names.iter().any(|n| n == "run_eval"),
+        "run_eval",
+        if tool_names.iter().any(|n| n == "run_eval") {
+            "run_eval"
+        } else {
+            "missing"
+        },
     ));
 
     let correct = facts.iter().all(|f| f.correct) && run.all_tool_ok();

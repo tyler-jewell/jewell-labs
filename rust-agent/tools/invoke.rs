@@ -3,6 +3,7 @@
 use super::allowlist::{resolve_allowlist, tool_matches_allowlist};
 use super::context::ToolContext;
 use super::introspect;
+use super::mutate;
 use super::sessions;
 use super::types::{ToolCall, ToolError, ToolResult, ToolSpec};
 use serde_json::{json, Value};
@@ -33,6 +34,14 @@ pub(crate) fn all_entries() -> Vec<ToolEntry> {
         entry(
             sessions::upsert_session::spec(),
             sessions::upsert_session::run,
+        ),
+        // mutate (orchestrator write / eval / learn / research)
+        entry(mutate::write_agent::spec(), mutate::write_agent::run),
+        entry(mutate::run_eval::spec(), mutate::run_eval::run),
+        entry(mutate::learn::spec(), mutate::learn::run),
+        entry(
+            mutate::research_models::spec(),
+            mutate::research_models::run,
         ),
     ]
 }

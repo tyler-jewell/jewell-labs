@@ -1,5 +1,5 @@
-//! Live listing of `tools/{category}/{tool-name}.rs` from the filesystem.
-//! Keeps the Tools sidebar aligned with on-disk structure.
+//! Shared tools: `tools/{category}/{name}.rs`.
+//! Agent-local drafts: `agents/{category}/{name}/tools/*` (metadata only until host-registered).
 
 use crate::agents::validate_segment;
 use crate::tools::builtin_tools;
@@ -92,10 +92,36 @@ pub fn list_tools_from_fs(tools_dir: impl AsRef<Path>) -> Vec<ToolFileEntry> {
     out
 }
 
+/// Agent-local tool drafts under `agents/{cat}/{name}/tools/` (not invocable unless registered).
+pub fn list_agent_local_tools(agents_dir: impl AsRef<Path>, agent_id: &str) -> Vec<String> {
+    let parts: Vec<_> = agent_id.splitn(2, '/').collect();
+    if parts.len() != 2 {
+        return vec![];
+    }
+    let dir = agents_dir.as_ref().join(parts[0]).join(parts[1]).join("tools");
+    if !dir.is_dir() {
+        return vec![];
+    }
+    let mut names = Vec::new();
+    if let Ok(rd) = fs::read_dir(dir) {
+        for e in rd.flatten() {
+            let p = e.path();
+            if let Some(stem) = p.file_stem().and_then(|s| s.to_str()) {
+                if stem != "mod" && validate_segment(stem).is_ok() {
+                    names.push(stem.to_string());
+                }
+            }
+        }
+    }
+    names.sort();
+    names
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::paths::tools_dir;
+    use tempfile::tempdir;
 
     #[test]
     fn scans_crate_tools_dir() {
@@ -109,5 +135,15 @@ mod tests {
         assert!(items.iter().any(|t| t.category == "sessions"));
         assert!(items.iter().all(|t| t.name != "mod"));
         assert!(items.iter().any(|t| t.registered));
+    }
+
+    #[test]
+    fn agent_local_tools_only_for_that_agent() {
+        let d = tempdir().unwrap();
+        fs::create_dir_all(d.path().join("tutoring/math-tutor/tools")).unwrap();
+        fs::write(d.path().join("tutoring/math-tutor/tools/hint.md"), "x").unwrap();
+        let local = list_agent_local_tools(d.path(), "tutoring/math-tutor");
+        assert_eq!(local, vec!["hint"]);
+        assert!(list_agent_local_tools(d.path(), "core/orchestrator").is_empty());
     }
 }

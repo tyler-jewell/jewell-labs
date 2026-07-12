@@ -80,3 +80,17 @@
   flex-direction: column;
   padding: 1rem 1.25rem 1.25rem;
 }
+
+/* Tool chips (metadata, not nav) */
+.tool-meta { margin-top: 0.5rem; padding: 0.5rem 0; border-top: 1px solid var(--border); }
+.tool-meta-label { font-size: 0.75rem; color: var(--muted); margin-bottom: 0.35rem; }
+.tool-chips { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.tool-chip {
+  font: inherit; font-size: 0.75rem; font-family: var(--mono);
+  padding: 0.2rem 0.5rem; border-radius: 999px;
+  border: 1px solid var(--border); background: rgba(255,255,255,0.04);
+  color: var(--text); cursor: pointer;
+}
+.tool-chip:hover { border-color: #3b82f6; }
+.tool-def { margin-top: 0.5rem; max-height: 12rem; overflow: auto; font-size: 0.72rem; }
+.tab.secondary { opacity: 0.75; font-size: 0.9em; }

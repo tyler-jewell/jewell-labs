@@ -1,8 +1,8 @@
-//! Leptos SSR UI — structure mirrors on-disk agents/ + tools/ and src/ domain tabs.
+//! Leptos SSR UI — agents-first console.
 
 mod panels;
 mod shell;
 mod views;
 
 pub use shell::AppShell;
-pub use views::{AgentRowView, CategoryAgents, CategoryTools, ShellFocus};
+pub use views::{AgentRowView, CategoryAgents, ShellFocus};

@@ -33,9 +33,11 @@ pub async fn nav() -> impl IntoResponse {
         "agent_tabs": crate::AGENT_TABS,
         "agents_dir": agents_dir().display().to_string(),
         "tools_dir": tools_dir().display().to_string(),
+        "default_agent": crate::CORE_AGENT_ID,
         "alignment": {
-            "sidebar_agents": "agents/{category}/{name}.md",
-            "sidebar_tools": "tools/{category}/{name}.rs",
+            "sidebar_agents_only": "agents/{category}/{name}.md",
+            "shared_tools": "tools/{category}/{name}.rs",
+            "agent_local_tools": "agents/{category}/{name}/tools/",
             "agent_tabs": "src/{chat,sessions,schema,registry}.rs",
         }
     }))

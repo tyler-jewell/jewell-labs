@@ -31,6 +31,7 @@ pub fn run(ctx: &ToolContext, args: &Value) -> Result<Value, ToolError> {
     let doc = load_agent(&ctx.agents_dir, &id).map_err(|e| ToolError::Msg(e.to_string()))?;
     let text = std::fs::read_to_string(&doc.path).unwrap_or_default();
     let cert = certify_agent_markdown(&text);
+    let local = crate::tool_fs::list_agent_local_tools(&ctx.agents_dir, &id);
     Ok(json!({
         "id": doc.id,
         "category": doc.category,
@@ -39,5 +40,7 @@ pub fn run(ctx: &ToolContext, args: &Value) -> Result<Value, ToolError> {
         "frontmatter": doc.frontmatter,
         "body": if include_body { Value::String(doc.body) } else { Value::Null },
         "certification": cert,
+        "shared_tools_allowlist": doc.frontmatter.tools,
+        "agent_local_tools": local,
     }))
 }

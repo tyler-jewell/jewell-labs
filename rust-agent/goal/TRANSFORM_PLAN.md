@@ -2,7 +2,7 @@
 
 **Checkpoint commit:** `efde332` (2026-07-11)  
 **Date:** 2026-07-11  
-**Principles:** KISS · SSoT · DRY · first principles · no framework cargo-cult  
+**Principles:** **No code is good code** (overrides all) · KISS · SSoT · DRY · first principles · no framework cargo-cult  
 
 This plan turns the current orchestrator console into a **lean agent-improving machine**: one host-enforced orchestrator, markdown agents, allowlisted tools, eval-gated learning, minimal UI.
 
