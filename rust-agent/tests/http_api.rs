@@ -105,57 +105,34 @@ async fn orchestrator_page_agents_only_sidebar() {
         "tools must not be peer sidebar nav"
     );
     assert!(body.contains("tool-meta") || body.contains("Available tools"));
-    assert!(body.contains("/static/app.js"));
+    assert!(
+        body.contains("/static/pkg/boot.js"),
+        "must load WASM bootstrap only"
+    );
+    assert!(!body.contains("/static/app.js"), "product app.js must be gone");
 }
 
 #[tokio::test]
-async fn static_sse_js_uses_js_startswith() {
-    let app = build_router(default_state());
-    let res = app
-        .oneshot(
-            Request::builder()
-                .uri("/static/js/sse.js")
-                .body(Body::empty())
-                .unwrap(),
+async fn wasm_pkg_glue_served() {
+    for uri in ["/static/pkg/boot.js", "/static/pkg/console_wasm.js"] {
+        let app = build_router(default_state());
+        let res = app
+            .oneshot(Request::builder().uri(uri).body(Body::empty()).unwrap())
+            .await
+            .unwrap();
+        assert_eq!(res.status(), StatusCode::OK, "{uri}");
+        let body = String::from_utf8(
+            res.into_body().collect().await.unwrap().to_bytes().to_vec(),
         )
-        .await
         .unwrap();
-    assert_eq!(res.status(), StatusCode::OK);
-    let body = String::from_utf8(
-        res.into_body().collect().await.unwrap().to_bytes().to_vec(),
-    )
-    .unwrap();
-    assert!(body.contains("startsWith"), "sse.js must use startsWith");
-    // Forbid the call form used by the original UI bug (assemble token so this test file is clean)
-    let bad = format!(".{}(", "starts_with");
-    assert!(
-        !body.contains(&bad),
-        "sse.js must not call Python-style starts_with"
-    );
-}
-
-#[tokio::test]
-async fn static_app_js_has_no_starts_with() {
-    let app = build_router(default_state());
-    let res = app
-        .oneshot(
-            Request::builder()
-                .uri("/static/app.js")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(res.status(), StatusCode::OK);
-    let body = String::from_utf8(
-        res.into_body().collect().await.unwrap().to_bytes().to_vec(),
-    )
-    .unwrap();
-    let bad = format!(".{}(", "starts_with");
-    assert!(
-        !body.contains(&bad),
-        "app.js must not call Python-style starts_with"
-    );
+        assert!(
+            body.contains("GENERATED")
+                || body.contains("wasm")
+                || body.contains("console_wasm")
+                || body.contains("import"),
+            "{uri} unexpected content"
+        );
+    }
 }
 
 #[tokio::test]

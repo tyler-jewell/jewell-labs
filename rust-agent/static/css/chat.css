@@ -33,8 +33,57 @@
   padding: 0.75rem 0.9rem;
   border-radius: 12px;
   line-height: 1.45;
-  white-space: pre-wrap;
   word-break: break-word;
+}
+.msg .content.md-plain {
+  white-space: pre-wrap;
+}
+.msg .content.md-body {
+  white-space: normal;
+}
+.msg .md-body p {
+  margin: 0 0 0.55em;
+}
+.msg .md-body p:last-child {
+  margin-bottom: 0;
+}
+.msg .md-body ul,
+.msg .md-body ol {
+  margin: 0.35em 0 0.55em;
+  padding-left: 1.25em;
+}
+.msg .md-body li {
+  margin: 0.2em 0;
+}
+.msg .md-body h1,
+.msg .md-body h2,
+.msg .md-body h3 {
+  margin: 0.4em 0 0.35em;
+  font-size: 1em;
+  font-weight: 650;
+  color: var(--text);
+}
+.msg .md-body code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+.msg .md-body pre.md-code {
+  margin: 0.45em 0;
+  padding: 0.65em 0.75em;
+  overflow: auto;
+  max-height: 280px;
+  background: #0c1016;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.8em;
+}
+.msg .md-body pre.md-code code {
+  background: none;
+  padding: 0;
+  white-space: pre-wrap;
 }
 .msg.user {
   align-self: flex-end;

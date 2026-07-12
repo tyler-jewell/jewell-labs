@@ -11,14 +11,14 @@ pub fn tools_system_appendix(allowed: &[String]) -> String {
             .into();
     }
     let mut lines = vec![
-        "## Built-in tools (Jewell Labs)".to_string(),
-        "You may only call tools listed below (from your frontmatter `tools:` allowlist)."
-            .to_string(),
-        "To call a tool, emit EXACTLY one fenced block:".to_string(),
+        "## Built-in tools (host-enforced)".to_string(),
+        "You may only call tools listed below.".to_string(),
+        "To call a tool, emit EXACTLY one fenced block and nothing else in that turn:".to_string(),
         "```tool".to_string(),
-        r#"{"name":"TOOL_NAME","arguments":{...}}"#.to_string(),
+        r#"{"name":"list_tools","arguments":{}}"#.to_string(),
         "```".to_string(),
-        "The host returns a tool_result. Prefer tools over guessing.".to_string(),
+        "Then wait for tool_result before answering the user.".to_string(),
+        "If asked what tools you have: call `list_tools` first — do not invent YAML agent templates.".to_string(),
         "".to_string(),
         "### Allowed tools".to_string(),
     ];
@@ -29,7 +29,7 @@ pub fn tools_system_appendix(allowed: &[String]) -> String {
         ));
     }
     lines.push("".into());
-    lines.push("Use `list_tools` (if allowed) for full parameter schemas.".into());
+    lines.push("After tool_result: answer the user in clear markdown (bullet list of tool names).".into());
     lines.join("\n")
 }
 

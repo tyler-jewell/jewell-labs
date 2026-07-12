@@ -92,7 +92,8 @@ pub fn AppShell(agent_groups: Vec<CategoryAgents>, focus: ShellFocus) -> impl In
                         }}
                     </main>
                 </div>
-                <script type="module" src="/static/app.js"></script>
+                // Only wasm-bindgen-generated glue (static/pkg/boot.js) — no product JS
+                <script type="module" src="/static/pkg/boot.js"></script>
             </body>
         </html>
     }

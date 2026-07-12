@@ -4,6 +4,8 @@ pub mod agent_run;
 pub mod agents;
 pub mod app;
 pub mod chat;
+/// Re-export pure UI parsers used by host tests (same as WASM client).
+pub use console_core::{parse_sse_data_line, render_markdown, SseEvent};
 pub mod eval;
 pub mod jail;
 pub mod learn;
