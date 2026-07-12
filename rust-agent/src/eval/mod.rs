@@ -10,9 +10,18 @@ mod runner;
 mod scoring;
 
 pub use agent_eval::{
-    dataset_path_for, eval_all_agents, parse_dataset, require_green_eval,
-    run_agent_eval, write_eval_report, DatasetCase, EvalError,
+    dataset_path_for, eval_all_agents, get_eval_depth, parse_dataset, require_green_eval,
+    run_agent_eval, set_eval_depth, write_eval_report, DatasetCase, EvalError,
 };
+
+/// Host probe: with depth already ≥1, run_agent_eval must return DepthExceeded.
+pub fn probe_eval_depth_exceeded(agent_id: &str) -> bool {
+    let prev = get_eval_depth();
+    set_eval_depth(1);
+    let r = run_agent_eval(agent_id, "tool_plan");
+    set_eval_depth(prev);
+    matches!(r, Err(EvalError::DepthExceeded))
+}
 pub use cases::{full_introspection_plan, orchestrator_ctx, run_tool_plan_case};
 pub use ground_truth::{CaseResult, EvalReport, EvalSummary, FactResult, GroundTruth};
 pub use llm_case::run_llm_case;

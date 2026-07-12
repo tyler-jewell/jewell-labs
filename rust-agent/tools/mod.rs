@@ -73,7 +73,7 @@ hello
         let tools = builtin_tools();
         assert!(tools.iter().any(|t| t.category == "introspect"));
         assert!(tools.iter().any(|t| t.category == "sessions"));
-        assert_eq!(tools.len(), 14); // lean core + mutate
+        assert_eq!(tools.len(), 15); // lean core + mutate
     }
 
     #[test]

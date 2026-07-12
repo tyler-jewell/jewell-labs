@@ -37,6 +37,7 @@ pub(crate) fn all_entries() -> Vec<ToolEntry> {
         ),
         // mutate (orchestrator write / eval / learn / research)
         entry(mutate::write_agent::spec(), mutate::write_agent::run),
+        entry(mutate::write_tool::spec(), mutate::write_tool::run),
         entry(mutate::run_eval::spec(), mutate::run_eval::run),
         entry(mutate::learn::spec(), mutate::learn::run),
         entry(

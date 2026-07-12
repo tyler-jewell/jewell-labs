@@ -31,6 +31,7 @@ pub const CORE_AGENT_TOOLS: &[&str] = &[
     "get_session",
     "upsert_session",
     "write_agent",
+    "write_tool",
     "run_eval",
     "learn",
     "research_models",

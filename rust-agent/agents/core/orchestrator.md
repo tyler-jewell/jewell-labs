@@ -16,6 +16,7 @@ tools:
   - get_session
   - upsert_session
   - write_agent
+  - write_tool
   - run_eval
   - learn
   - research_models
@@ -72,7 +73,8 @@ System prompt body.
 | list_sessions | List/search sessions |
 | get_session | Read chat log |
 | upsert_session | Write session |
-| write_agent | Jail-safe agent create/update |
+| write_agent | Jail-safe agent create/update (red eval rolls back) |
+| write_tool | Shared tools/*.rs.draft or agent-local tools/ |
 | run_eval | Host structural eval |
 | learn | Eval-gated improve |
 | research_models | Model research + promote gate |

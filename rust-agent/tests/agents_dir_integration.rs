@@ -107,6 +107,12 @@ fn core_agent_can_invoke_every_registered_tool() {
                 "markdown": "---\nschema_version: 1\nname: smoke-write\ndescription: t\ndefault_model: qwen3-0.6b\nrole: agent\ntools:\n  - list_tools\n---\n\nbody\n",
                 "require_eval": false
             }),
+            "write_tool" => json!({
+                "scope": "agent_local",
+                "agent_id": "tutoring/math-tutor",
+                "name": "smoke_local",
+                "content": "# smoke\n"
+            }),
             other => panic!("no smoke args for tool {other}"),
         };
         let result = invoke_tool(&ctx, name, &args);

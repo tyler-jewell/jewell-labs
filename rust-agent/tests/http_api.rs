@@ -171,7 +171,7 @@ async fn api_lists_core_orchestrator_and_tools() {
     let (st, tools) = json_get("/api/tools").await;
     assert_eq!(st, StatusCode::OK);
     let t = tools["tools"].as_array().expect("tools");
-    assert_eq!(t.len(), 14, "lean tool surface expected 14, got {}", t.len());
+    assert_eq!(t.len(), 15, "lean tool surface expected 15, got {}", t.len());
     assert!(t.iter().any(|x| x["name"] == "list_tools"));
     assert!(t.iter().all(|x| x["name"] != "search_chat_logs"));
 }
@@ -190,7 +190,7 @@ async fn core_orchestrator_can_invoke_list_tools_via_api() {
     assert_eq!(st, StatusCode::OK, "{body}");
     assert_eq!(body["ok"], true, "{body}");
     let tools = body["result"]["tools"].as_array().expect("tools");
-    assert_eq!(tools.len(), 14);
+    assert_eq!(tools.len(), 15);
 }
 
 #[tokio::test]

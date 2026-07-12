@@ -1,0 +1,1 @@
+# hint tool draft

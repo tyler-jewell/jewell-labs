@@ -24,8 +24,6 @@ pub struct DatasetCase {
 pub enum EvalError {
     #[error("eval_depth_exceeded")]
     DepthExceeded,
-    #[error("missing dataset: {0}")]
-    MissingDataset(String),
     #[error("invalid dataset: {0}")]
     InvalidDataset(String),
     #[error("agent: {0}")]
@@ -96,15 +94,10 @@ fn parse_list(s: &str) -> Vec<String> {
         .collect()
 }
 pub fn dataset_path_for(agent_id: &str) -> PathBuf {
-    let mut p = repo_root().join("evals/datasets");
-    for (i, part) in agent_id.split('/').enumerate() {
-        if i + 1 == agent_id.split('/').count() {
-            p.push(format!("{part}.md"));
-        } else {
-            p.push(part);
-        }
-    }
-    p
+let parts: Vec<_> = agent_id.split('/').collect();
+let mut p = repo_root().join("evals/datasets");
+for (i, part) in parts.iter().enumerate() { if i + 1 == parts.len() { p.push(format!("{part}.md")); } else { p.push(part); } }
+p
 }
 fn agent_ctx(agent_id: &str) -> Result<(ToolContext, crate::schema::AgentDocument), EvalError> {
     let agents = agents_dir();
@@ -296,4 +289,11 @@ pub fn write_eval_report(report: &EvalReport, dir: impl AsRef<Path>) -> std::io:
     let path = dir.join(format!("{}.json", report.id));
     std::fs::write(&path, serde_json::to_string_pretty(report)?)?;
     Ok(path)
+}
+/// Set thread-local eval depth (tests / host probes only).
+pub fn set_eval_depth(depth: u32) {
+    DEPTH.with(|d| d.set(depth));
+}
+pub fn get_eval_depth() -> u32 {
+    DEPTH.with(|d| d.get())
 }

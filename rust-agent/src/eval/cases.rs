@@ -80,6 +80,15 @@ pub fn full_introspection_plan(_gt: &GroundTruth) -> Vec<(String, Value)> {
                 "require_eval": false
             }),
         ),
+        (
+            "write_tool".into(),
+            json!({
+                "scope": "agent_local",
+                "agent_id": "tutoring/math-tutor",
+                "name": "hint",
+                "content": "# hint tool draft\n"
+            }),
+        ),
     ]
 }
 

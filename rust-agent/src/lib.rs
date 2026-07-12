@@ -31,12 +31,15 @@ pub use agents::{
 };
 pub use jail::{agent_file_rel, JailError, WriteJail};
 pub use learn::{learn_improve, LearnReport, LearnRequest};
-pub use model_research::{run_model_research, ModelResearchReport};
+pub use model_research::{
+    model_fitness, project_tool_plan_score, run_model_research, ModelResearchReport,
+};
 pub use chat::{complete_chat, stream_chat, ChatEndpoint, ChatError, ChatMessage, ChatRequest};
 pub use eval::{
-    eval_all_agents, require_green_eval, run_agent_eval, run_full_eval, write_eval_report,
-    write_report, EvalError, EvalReport, GroundTruth,
+    eval_all_agents, probe_eval_depth_exceeded, require_green_eval, run_agent_eval, run_full_eval,
+    write_eval_report, write_report, EvalError, EvalReport, GroundTruth,
 };
+// re-export probe via eval module
 pub use nav::{
     agent_tab_def, default_agent_tab, group_by_category, is_valid_agent_tab, normalize_agent_tab,
     AgentTabDef, AGENT_TABS,
