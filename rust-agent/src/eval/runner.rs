@@ -83,10 +83,18 @@ pub async fn run_full_eval(include_llm: bool) -> EvalReport {
     };
 
     let plan = cases.iter().find(|c| c.track == "tool_plan");
+    // `run_eval` is registered and claim-tested, but must not be *invoked* inside the
+    // core self-eval plan (eval_depth guard). Complete introspection = all other tools called.
     let all_tools = plan
         .map(|c| {
             let called: BTreeSet<_> = c.tools_called.iter().cloned().collect();
-            gt.tool_names.is_subset(&called) && c.correct
+            let required: BTreeSet<_> = gt
+                .tool_names
+                .iter()
+                .filter(|n| n.as_str() != "run_eval")
+                .cloned()
+                .collect();
+            required.is_subset(&called) && c.correct
         })
         .unwrap_or(false);
 

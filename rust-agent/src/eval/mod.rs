@@ -52,5 +52,13 @@ mod tests {
         assert_eq!(unique.len(), gt.tool_count - 1);
         assert!(unique.iter().all(|n| n != "run_eval"));
         assert!(gt.tool_names.contains("run_eval"));
+        // required tools for complete_introspection exclude run_eval
+        let required: std::collections::BTreeSet<_> = gt
+            .tool_names
+            .iter()
+            .filter(|n| n.as_str() != "run_eval")
+            .cloned()
+            .collect();
+        assert!(required.is_subset(&unique));
     }
 }
