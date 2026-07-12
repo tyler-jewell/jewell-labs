@@ -7,6 +7,7 @@ pub mod chat;
 pub mod eval;
 pub mod jail;
 pub mod learn;
+pub mod model_eval;
 pub mod model_research;
 pub mod nav;
 pub mod paths;
@@ -31,8 +32,10 @@ pub use agents::{
 };
 pub use jail::{agent_file_rel, JailError, WriteJail};
 pub use learn::{learn_improve, LearnReport, LearnRequest};
+pub use model_eval::{score_inference_target, score_project_eval, ProjectEvalScore};
 pub use model_research::{
-    model_fitness, project_tool_plan_score, run_model_research, ModelResearchReport,
+    model_fitness, project_tool_plan_score, run_model_research, write_research_report,
+    ModelResearchReport, ModelResearchRequest,
 };
 pub use chat::{complete_chat, stream_chat, ChatEndpoint, ChatError, ChatMessage, ChatRequest};
 pub use eval::{

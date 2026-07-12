@@ -17,7 +17,8 @@ pub fn spec() -> ToolSpec {
             "type": "object",
             "properties": {
                 "candidate_id": {"type": "string"},
-                "candidate_path": {"type": "string"},
+                "candidate_path": {"type": "string", "description": "GGUF path or ollama:model"},
+                "baseline_path": {"type": "string", "description": "optional override; GGUF path or ollama:model"},
                 "offline": {"type": "boolean"},
                 "apply": {"type": "boolean"},
                 "list_sources_only": {"type": "boolean"}
@@ -38,9 +39,11 @@ pub fn run(ctx: &ToolContext, args: &Value) -> Result<Value, ToolError> {
 
     let candidate_id = arg_str(args, "candidate_id").unwrap_or_else(|| "candidate".into());
     let candidate_path = arg_str(args, "candidate_path");
+    let baseline_path = arg_str(args, "baseline_path");
     let req = ModelResearchRequest {
         candidate_id,
         candidate_path,
+        baseline_path,
         offline: arg_bool(args, "offline", true),
         apply: arg_bool(args, "apply", false),
     };
