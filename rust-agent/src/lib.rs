@@ -1,0 +1,49 @@
+//! Core library: schema certification, agent listing, registry, chat, tools, UI.
+
+pub mod agent_run;
+pub mod agents;
+pub mod app;
+pub mod chat;
+pub mod eval;
+pub mod nav;
+pub mod paths;
+pub mod registry;
+pub mod schema;
+pub mod server;
+pub mod sessions;
+pub mod tool_fs;
+
+/// Back-compat module path for eval (formerly `eval_introspection`).
+pub use eval as eval_introspection;
+
+/// Tools live at `rust-agent/tools/{category}/{tool-name}.rs` (shared by src + agents).
+#[path = "../tools/mod.rs"]
+pub mod tools;
+
+pub use agent_run::{run_agent_with_tools, run_tool_plan, AgentRunResult, ToolRound};
+pub use agents::{
+    agent_id, certify_agent_file, list_agents, load_agent, parse_agent_ref, path_is_under_agents,
+    resolve_agent_path, validate_segment, validate_stem, write_agent_file, AgentListItem,
+    AgentsError, CORE_AGENT_ID, CORE_AGENT_TOOLS,
+};
+pub use chat::{complete_chat, stream_chat, ChatEndpoint, ChatError, ChatMessage, ChatRequest};
+pub use eval::{run_full_eval, write_report, EvalReport, GroundTruth};
+pub use nav::{
+    agent_tab_def, default_agent_tab, group_by_category, is_valid_agent_tab, normalize_agent_tab,
+    AgentTabDef, AGENT_TABS,
+};
+pub use paths::{agents_dir, crate_root, registry_path, repo_root, sessions_dir, tools_dir};
+pub use registry::{ModelRegistry, RegistryError, ResolvedModel};
+pub use schema::{
+    certify_agent_markdown, parse_frontmatter, schema_summary, AgentDocument, AgentFrontmatter,
+    CertificationResult, LATEST_SCHEMA_VERSION,
+};
+pub use sessions::{
+    ChatSession, MessageHit, SessionError, SessionMessage, SessionStore, SessionSummary,
+};
+pub use tool_fs::{list_tools_from_fs, ToolFileEntry};
+pub use tools::{
+    all_tool_names, builtin_tools, extract_tool_call, filter_tools_for_agent, invoke_tool,
+    invoke_tool_call, resolve_allowlist, system_with_tools, tools_system_appendix,
+    validate_tool_allowlist, ToolCall, ToolContext, ToolResult, ToolSpec, MAX_TOOL_ROUNDS,
+};

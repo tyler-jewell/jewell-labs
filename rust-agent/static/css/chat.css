@@ -1,0 +1,105 @@
+.settings code, .sessions code, .chat-hint code {
+  font-family: var(--mono);
+  font-size: 0.85em;
+  color: #9db4d0;
+}
+
+.chat {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 0.85rem;
+}
+.chat-hint {
+  font-size: 0.8rem;
+  padding: 0 0.15rem;
+}
+
+.transcript {
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-elev);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-height: 320px;
+}
+
+.msg {
+  max-width: min(720px, 92%);
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.msg.user {
+  align-self: flex-end;
+  background: #1d3358;
+  border: 1px solid #2f4d7a;
+}
+.msg.assistant {
+  align-self: flex-start;
+  background: #151b24;
+  border: 1px solid var(--border);
+}
+.msg.tool {
+  align-self: stretch;
+  max-width: min(820px, 100%);
+  background: #121820;
+  border: 1px solid #2a3d55;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+}
+.msg.tool.tool_call { border-color: #3d5a8a; }
+.msg.tool.tool_result { border-color: #2f6b4f; }
+.msg .tool-title {
+  font-weight: 650;
+  color: var(--accent);
+  margin-bottom: 0.35rem;
+  white-space: normal;
+}
+.msg .tool-payload {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: #c5d4e8;
+  max-height: 220px;
+  overflow: auto;
+}
+.msg .role {
+  display: block;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+.msg.streaming { border-color: #3b5f96; }
+.msg.error { border-color: #6b2a33; color: #ffc4cb; }
+
+.composer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.65rem;
+  align-items: end;
+}
+.composer textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 56px;
+  max-height: 180px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  padding: 0.8rem 0.9rem;
+  outline: none;
+}
+.composer textarea:focus {
+  border-color: #3d6bb3;
+  box-shadow: 0 0 0 3px rgba(110, 168, 254, 0.15);
+}

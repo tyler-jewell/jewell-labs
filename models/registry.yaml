@@ -1,0 +1,19 @@
+models:
+  qwen3-0.6b:
+    path: /Users/studio/.claude/jobs/bc7aa14c/tmp/install-test/models/Qwen3-0.6B-Q8_0.gguf
+    alias: qwen3-0.6b
+    defaults:
+      ctx: 2048
+      reasoning: "off"
+  qwen3-4b:
+    path: /Users/studio/.llama/models/Qwen3-4B-Instruct-2507-Q8_0.gguf
+    alias: qwen3-4b
+    defaults:
+      ctx: 2048
+      reasoning: "off"
+  qwen3.6-35b:
+    path: /Users/studio/.llama/models/Qwen3.6-35B-A3B-UD-Q3_K_M.gguf
+    alias: qwen3.6-35b
+    defaults:
+      ctx: 2048
+      reasoning: "off"
