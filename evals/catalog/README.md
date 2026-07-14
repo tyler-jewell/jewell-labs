@@ -16,10 +16,10 @@ evals/catalog/
 
 | id | Focus | Links |
 | --- | --- | --- |
-| `swe-bench` | Real issue→patch coding / agent autonomy | [swebench.com](https://www.swebench.com/) |
+| `swe-bench` | Real issue→patch coding / agent autonomy (+ host-lite coding items) | [swebench.com](https://www.swebench.com/) |
 | `terminal-bench` | Multi-step CLI/terminal autonomy | [tbench.ai](https://www.tbench.ai/) |
 | `bfcl` | Tool/function calling for assistants | [BFCL leaderboard](https://gorilla.cs.berkeley.edu/leaderboard.html) |
-| `legacy-local` | Old harness_compare smokes (**disabled**) | — |
+| `legacy-local` | Host-runnable smokes from harness_compare (closed form, coding, multi-step) | — |
 
 ## Run
 

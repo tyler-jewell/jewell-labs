@@ -5,5 +5,6 @@ links = ["https://github.com/"]
 license = "MIT"
 version = "legacy-v1"
 tags = ["legacy", "smoke"]
-enabled = false
+enabled = true
 notes = "Not included in default catalog discovery. Enable explicitly with --include-disabled if needed."
+notes = "Host-runnable smokes from harness_compare; enabled for expanded multi-source sampling."
