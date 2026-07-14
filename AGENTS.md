@@ -284,7 +284,7 @@ That is the baseline every harness in this repo should be able to execute before
 
 ### Multi-source catalog evals (public agentic benches)
 
-Modular catalog under `evals/catalog/sources/` (SWE-bench, Terminal-Bench, BFCL). Not hard-coded smokes.
+Modular catalog under `evals/catalog/sources/` (SWE-bench, Terminal-Bench, BFCL). **Online datasets only** — `remote.toml` pointers; no hard-coded task bodies or `legacy-local` smokes.
 
 ```bash
 cd rust-agent
@@ -301,8 +301,7 @@ cargo run -q --bin eval_catalog -- --harnesses jewell,hermes --sample-n 5
 - Add a CLI vendor by writing one TOML file (no Rust edits). See `evals/vendors/README.md`.
 - Sandbox-only items are excluded from sampling unless `--include-sandbox` is set.
 
-- Catalog: `evals/catalog/` (source.toml + items.jsonl per source)
+- Catalog: `evals/catalog/` (`source.toml` + `remote.toml` per source; hydrate online)
 - Artifacts: `evals/runs/catalog-*.json`
 - UI: `/evals` → **Catalog sample**
 - Structural CI gates remain: `eval_introspection` (tool_plan + team) — separate from public benches
-- Legacy local Harbor tasks: `eval_compare` / optional `legacy-local` source (disabled)

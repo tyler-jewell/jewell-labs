@@ -1,6 +1,0 @@
-id = "multi_step_report"
-title = "Write notes then summary"
-track = "multi_step"
-timeout_s = 240
-capabilities = ["write_file", "multi_step"]
-n_runs_default = 1

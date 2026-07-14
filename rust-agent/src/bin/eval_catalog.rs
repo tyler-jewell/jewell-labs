@@ -26,7 +26,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     list_vendors: bool,
 
-    /// Include disabled sources (e.g. legacy-local)
+    /// Include disabled sources
     #[arg(long, default_value_t = false)]
     include_disabled: bool,
 

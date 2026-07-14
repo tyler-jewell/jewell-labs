@@ -1,105 +1,37 @@
-//! Multi-harness compare: dry gold + capability skip honesty (shipped entry path).
+//! Legacy local Harbor compare harness: synthetic tasks were removed.
+//! Public evals live in online catalog (`eval_catalog`). These tests keep
+//! pure scoring helpers and assert the local tasks dir no longer ships smokes.
 
-use rust_agent::{run_compare, CompareOpts};
+use rust_agent::eval::compare::{solid_base, summarize_items, CompareItem};
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
 #[test]
-fn dry_all_tasks_pass_via_run_compare() {
-    let report = run_compare(&CompareOpts {
-        harnesses: vec!["dry".into()],
-        tasks_filter: "all".into(),
-        run_id: Some(format!(
-            "compare-test-dry-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
-        )),
-        ..Default::default()
-    })
-    .expect("dry compare");
-
-    assert_eq!(report.kind, "compare");
-    assert!(!report.items.is_empty());
-    for it in &report.items {
-        assert_eq!(it.status, "pass", "{} detail={}", it.task_id, it.detail);
-        assert!((it.score - 1.0).abs() < 1e-9, "{} score={}", it.task_id, it.score);
+fn local_compare_tasks_dir_has_no_hardcoded_evals() {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../evals/harness_compare/tasks");
+    if !root.is_dir() {
+        return;
     }
-    let dry = report.summary.harnesses.get("dry").expect("dry summary");
-    assert!((dry.avg_score - 1.0).abs() < 1e-9);
-    assert!(dry.solid_base <= dry.avg_score + 1e-9);
-    assert_eq!(dry.n_skip, 0);
-}
-
-#[test]
-fn jewell_attempts_coding_task_not_capability_skip() {
-    // Jewell now provides write_file/terminal/coding via agent fs_* tools.
-    // Legacy coding tasks may still fail grading, but must not capability-skip.
-    let report = run_compare(&CompareOpts {
-        harnesses: vec!["jewell".into()],
-        tasks_filter: "coding_fix_bug".into(),
-        run_id: Some(format!(
-            "compare-test-jewell-attempt-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
-        )),
-        ..Default::default()
-    })
-    .expect("jewell coding");
-
-    assert_eq!(report.items.len(), 1);
-    let it = &report.items[0];
-    assert_ne!(
-        it.status, "skip",
-        "must attempt coding tasks (got skip): detail={} caps={:?}",
-        it.detail, it.capabilities_missing
-    );
-    assert!(
-        it.capabilities_missing.is_empty(),
-        "unexpected capability skip: {:?}",
-        it.capabilities_missing
-    );
-    assert!(
-        matches!(it.status.as_str(), "pass" | "fail" | "error"),
-        "status={}",
-        it.status
-    );
-}
-
-#[test]
-fn hermes_skips_host_eval_capability() {
-    let report = run_compare(&CompareOpts {
-        harnesses: vec!["hermes".into()],
-        tasks_filter: "agent_os_introspection".into(),
-        run_id: Some(format!(
-            "compare-test-hermes-skip-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_secs()
-        )),
-        ..Default::default()
-    })
-    .expect("hermes host");
-
-    assert_eq!(report.items.len(), 1);
-    let it = &report.items[0];
-    assert_eq!(it.status, "skip");
-    assert_eq!(it.score, 0.0);
-    assert!(
-        it.detail.contains("host_eval") || it.capabilities_missing.iter().any(|c| c == "host_eval"),
-        "detail={} caps={:?}",
-        it.detail,
-        it.capabilities_missing
-    );
+    for ent in std::fs::read_dir(&root).unwrap() {
+        let p = ent.unwrap().path();
+        if p.is_dir() {
+            // No task packs with instruction.md (hard-coded local evals).
+            assert!(
+                !p.join("instruction.md").is_file(),
+                "hard-coded local eval task forbidden: {}",
+                p.display()
+            );
+            assert!(
+                !p.join("task.toml").is_file(),
+                "hard-coded local eval task.toml forbidden: {}",
+                p.display()
+            );
+        }
+    }
 }
 
 #[test]
 fn solid_base_never_exceeds_avg() {
-    use rust_agent::eval::compare::{solid_base, summarize_items, CompareItem};
-
     let items = vec![
         CompareItem {
             harness: "h".into(),

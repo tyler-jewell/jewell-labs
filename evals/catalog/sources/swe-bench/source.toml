@@ -1,10 +1,14 @@
 id = "swe-bench"
-name = "SWE-bench (lite subset)"
-description = "Real GitHub issue→patch software engineering tasks. Canonical agentic coding benchmark used to compare Claude Code, Codex, OpenHands, mini-SWE, etc."
-links = ["https://www.swebench.com/", "https://github.com/SWE-bench/SWE-bench", "https://arxiv.org/abs/2310.06770"]
+name = "SWE-bench Lite (online)"
+description = "SWE-bench Lite issue→patch instances. Instance IDs reference the public dataset; problem text is fetched from GitHub (PR) at load time — no hard-coded issue bodies in-repo."
+links = [
+  "https://www.swebench.com/",
+  "https://github.com/SWE-bench/SWE-bench",
+  "https://huggingface.co/datasets/princeton-nlp/SWE-bench_Lite",
+  "https://arxiv.org/abs/2310.06770",
+]
 license = "MIT"
-version = "catalog-lite-v1"
+version = "online-v1"
 tags = ["coding", "autonomy", "agent_execution", "multi_step"]
 enabled = true
-notes = "Full SWE-bench needs Docker + repo checkout + unit tests. Catalog ships a provenance-linked lite subset; default execution is skip-honest unless dry wiring check."
-notes = "Includes Docker stubs (sandbox_skip) plus host-lite coding items that run without Docker."
+notes = "Full scoring needs Docker + unit tests. Catalog hydrates instance metadata online; runs skip without sandbox."

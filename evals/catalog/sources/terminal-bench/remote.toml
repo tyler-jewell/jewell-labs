@@ -1,0 +1,18 @@
+# Online-only dataset pointer (task names = official original-tasks/ folders).
+remote_kind = "terminal_bench_github"
+base_url = "https://raw.githubusercontent.com/laude-institute/terminal-bench/main/original-tasks"
+# Official task folder names only (content from each task's remote task.yaml).
+tasks = [
+  "hello-world",
+  "csv-to-parquet",
+  "git-multibranch",
+  "fix-git",
+  "jq-data-processing",
+  "openssl-selfsigned-cert",
+  "configure-git-webserver",
+  "cron-broken-network",
+  "extract-elf",
+  "log-summary",
+  "nginx-request-logging",
+  "sanitize-git-repo",
+]

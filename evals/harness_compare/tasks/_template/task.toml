@@ -1,6 +1,0 @@
-id = "_template"
-title = "Copy me — do not run"
-track = "coding"
-timeout_s = 180
-capabilities = ["terminal", "write_file"]
-n_runs_default = 1

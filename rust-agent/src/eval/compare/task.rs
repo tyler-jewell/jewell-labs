@@ -276,18 +276,18 @@ n_runs_default = 1
     }
 
     #[test]
-    fn discover_real_tasks() {
+    fn discover_local_tasks_empty_after_online_only() {
+        // Hard-coded Harbor smokes removed; public evals use online catalog remotes.
         let root = repo_root();
         let dir = compare_tasks_dir(&root);
         if !dir.is_dir() {
             return;
         }
         let all = discover_tasks(&dir, "all").expect("discover");
-        assert!(all.len() >= 3, "expected sample tasks, got {}", all.len());
-        let coding = discover_tasks(&dir, "coding").unwrap();
-        assert!(coding.iter().all(|t| t.track == "coding"));
-        let one = discover_tasks(&dir, "closed_form_ratio").unwrap();
-        assert_eq!(one.len(), 1);
-        assert_eq!(one[0].id, "closed_form_ratio");
+        assert!(
+            all.is_empty(),
+            "local compare tasks must be empty (use eval_catalog online sources); got {}",
+            all.len()
+        );
     }
 }

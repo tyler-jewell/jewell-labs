@@ -1,8 +1,12 @@
 //! Modular multi-source eval catalog: metadata, filter, seeded sample.
+//!
+//! Item **bodies** are never hard-coded in-repo. Each source has `remote.toml`
+//! pointing at public online datasets; see [`remote`].
 
 mod filter;
 mod grade;
 mod load;
+mod remote;
 mod run;
 mod sample;
 mod types;

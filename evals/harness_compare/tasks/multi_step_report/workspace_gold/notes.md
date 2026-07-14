@@ -1,3 +1,0 @@
-- alpha path explored
-- beta path explored
-- gamma path explored

@@ -1,5 +1,6 @@
-//! Discover sources under evals/catalog/sources/.
+//! Discover sources under evals/catalog/sources/ and hydrate items from online remotes.
 
+use super::remote::{assert_no_hardcoded_items, load_remote_items};
 use super::types::{CatalogItem, SourceMeta, SourceSummary};
 use crate::paths::repo_root;
 use std::fs;
@@ -13,16 +14,30 @@ pub fn sources_dir(repo: &Path) -> PathBuf {
     catalog_root(repo).join("sources")
 }
 
-/// Tiny TOML subset for source.toml (same rules as compare task.toml).
+/// Tiny TOML subset for source.toml, including multi-line string arrays.
 fn parse_simple_toml(text: &str) -> std::collections::BTreeMap<String, String> {
     let mut m = std::collections::BTreeMap::new();
-    for raw in text.lines() {
+    let mut lines = text.lines().peekable();
+    while let Some(raw) = lines.next() {
         let line = raw.trim();
         if line.is_empty() || line.starts_with('#') || !line.contains('=') {
             continue;
         }
-        let (k, v) = line.split_once('=').unwrap();
-        m.insert(k.trim().to_string(), v.trim().to_string());
+        let (k, v0) = line.split_once('=').unwrap();
+        let key = k.trim().to_string();
+        let mut v = v0.trim().to_string();
+        if v.starts_with('[') && !v.contains(']') {
+            let mut buf = v;
+            while let Some(more) = lines.next() {
+                buf.push(' ');
+                buf.push_str(more.trim());
+                if more.contains(']') {
+                    break;
+                }
+            }
+            v = buf;
+        }
+        m.insert(key, v);
     }
     m
 }
@@ -106,37 +121,26 @@ pub fn load_source_meta(dir: &Path) -> std::io::Result<SourceMeta> {
     })
 }
 
+/// Hydrate catalog items from the source's online remote (remote.toml).
+/// Hard-coded `items.jsonl` task bodies are rejected.
 pub fn load_items(source: &SourceMeta) -> std::io::Result<Vec<CatalogItem>> {
-    let path = source.path.join("items.jsonl");
-    if !path.is_file() {
-        return Ok(vec![]);
+    assert_no_hardcoded_items(&source.path).map_err(|e| {
+        std::io::Error::new(std::io::ErrorKind::InvalidData, e)
+    })?;
+    if !source.path.join("remote.toml").is_file() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::NotFound,
+            format!(
+                "source {}: remote.toml required (online dataset pointer only)",
+                source.id
+            ),
+        ));
     }
-    let text = fs::read_to_string(path)?;
-    let mut out = Vec::new();
-    for (lineno, line) in text.lines().enumerate() {
-        let line = line.trim();
-        if line.is_empty() || line.starts_with('#') {
-            continue;
-        }
-        let mut item: CatalogItem = serde_json::from_str(line).map_err(|e| {
-            std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                format!("{}:{}: {e}", source.id, lineno + 1),
-            )
-        })?;
-        if item.source_id.is_empty() {
-            item.source_id = source.id.clone();
-        }
-        // inherit source tags if item tags empty
-        if item.tags.is_empty() {
-            item.tags = source.tags.clone();
-        }
-        out.push(item);
-    }
-    Ok(out)
+    load_remote_items(source).map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
 }
 
-/// Load all sources (enabled and disabled).
+/// Load all sources (enabled and disabled). Item counts use remote.toml list sizes when
+/// network hydrate is not yet run (cheap discovery); prefer load_items for full bodies.
 pub fn load_all_sources(repo: Option<&Path>) -> std::io::Result<Vec<SourceMeta>> {
     let root = repo.map(Path::to_path_buf).unwrap_or_else(repo_root);
     let dir = sources_dir(&root);
@@ -152,11 +156,43 @@ pub fn load_all_sources(repo: Option<&Path>) -> std::io::Result<Vec<SourceMeta>>
     let mut sources = Vec::new();
     for p in entries {
         let mut meta = load_source_meta(&p)?;
-        let items = load_items(&meta)?;
-        meta.item_count = items.len();
+        // Prefer cheap remote ref count for discovery; fall back to hydrate length.
+        meta.item_count = remote_ref_count(&meta).unwrap_or(0);
+        if meta.item_count == 0 {
+            // try hydrate once for accurate count (may use cache)
+            if let Ok(items) = load_items(&meta) {
+                meta.item_count = items.len();
+            }
+        }
         sources.push(meta);
     }
     Ok(sources)
+}
+
+fn remote_ref_count(source: &SourceMeta) -> Option<usize> {
+    let text = fs::read_to_string(source.path.join("remote.toml")).ok()?;
+    let m = parse_simple_toml(&text);
+    let kind = m.get("remote_kind")?.trim_matches('"');
+    match kind {
+        "bfcl_github" => {
+            let files = m.get("files").map(|s| parse_list_field(s))?;
+            let max_per = m
+                .get("max_per_file")
+                .and_then(|s| s.trim().trim_matches('"').parse().ok())
+                .unwrap_or(20usize);
+            // upper bound until hydrated
+            Some(files.len().saturating_mul(max_per))
+        }
+        "terminal_bench_github" => {
+            let tasks = m.get("tasks").map(|s| parse_list_field(s))?;
+            Some(tasks.len())
+        }
+        "swe_bench_github_pr" => {
+            let ids = m.get("instance_ids").map(|s| parse_list_field(s))?;
+            Some(ids.len())
+        }
+        _ => None,
+    }
 }
 
 pub fn list_source_summaries(include_disabled: bool) -> std::io::Result<Vec<SourceSummary>> {
@@ -177,7 +213,7 @@ pub fn list_source_summaries(include_disabled: bool) -> std::io::Result<Vec<Sour
         .collect())
 }
 
-/// Load all items from enabled sources (or filtered source ids).
+/// Load all items from enabled sources (or filtered source ids) via online remotes.
 pub fn load_catalog_items(
     source_ids: &[String],
     include_disabled: bool,

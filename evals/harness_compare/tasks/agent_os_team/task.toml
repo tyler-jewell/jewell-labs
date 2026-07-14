@@ -1,6 +1,0 @@
-id = "agent_os_team"
-title = "Jewell host team collaboration gate"
-track = "agent_os"
-timeout_s = 180
-capabilities = ["host_eval", "agent_os"]
-n_runs_default = 1

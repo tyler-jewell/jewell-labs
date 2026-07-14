@@ -127,6 +127,25 @@ pub fn grade_catalog_item(item: &CatalogItem, workspace: &Path, harness: &str) -
             }
         }
         "tool_call" => grade_tool_call(item, workspace),
+        // BFCL irrelevance: model must not emit a tool/function call.
+        "no_tool_call" => {
+            let text = read_grade_text(workspace, g.answer_file.as_deref());
+            let calls = extract_tool_calls(&text);
+            let ok = calls.is_empty();
+            CatalogGrade {
+                correct: ok,
+                score: if ok { 1.0 } else { 0.0 },
+                detail: if ok {
+                    "no_tool_call ok".into()
+                } else {
+                    format!(
+                        "expected no tool call, found {:?}",
+                        calls.iter().map(|(n, _)| n.as_str()).collect::<Vec<_>>()
+                    )
+                },
+                metrics: Map::new(),
+            }
+        }
         "file_exact" => {
             // Alias for exact with required answer_file
             let Some(rel) = g.answer_file.as_deref() else {

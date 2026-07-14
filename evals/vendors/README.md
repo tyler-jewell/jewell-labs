@@ -8,7 +8,7 @@ Drop-in multi-vendor adapters for catalog runs. **Same model** for every vendor:
 
 | What | File |
 | --- | --- |
-| Task (prompt, tools, workspace, gold) | `evals/catalog/sources/<src>/items.jsonl` |
+| Task (prompt, tools, workspace, gold) | Online via `evals/catalog/sources/<src>/remote.toml` (hydrated at load) |
 | Model pin | `evals/model.toml` |
 | **Harness config (only knobs for a vendor)** | `evals/vendors/<id>/vendor.toml` |
 

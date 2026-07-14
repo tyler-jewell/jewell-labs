@@ -7,7 +7,7 @@
 > cargo run -q --bin eval_catalog -- --harnesses dry,jewell,hermes --sample-n 20 --seed 42
 > ```
 >
-> This directory’s synthetic smokes (`tasks/`) are **legacy** only (`eval_compare` / optional `legacy-local` source, disabled by default).
+> Synthetic local `tasks/` packs were **removed**. Use online catalog sources only (`evals/catalog/`).
 
 Lean evaluation framework for head-to-head runs of:
 

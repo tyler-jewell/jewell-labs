@@ -15,7 +15,7 @@ This document is the policy for catalog multi-vendor runs (`eval_catalog`).
 
 | Surface | SSoT | Purpose |
 | --- | --- | --- |
-| **Task prompt + tools + workspace files** | `evals/catalog/sources/<src>/items.jsonl` | Identical bytes to every vendor |
+| **Task prompt + tools + workspace files** | Online datasets via `remote.toml` (hydrated at load; cache under `evals/catalog/.cache/`) | Identical bytes to every vendor |
 | **Gold / grade kind** | same item `grade` object | Post-hoc only; never pasted into the user message by adapters |
 | **Shared model pin** | `evals/model.toml` | Same weights / endpoint for all vendors |
 | **Vendor harness config** | `evals/vendors/<id>/vendor.toml` (`config_ssot`) | **Only** place to change toolsets, max-turns, bin, cwd, home, temperature pin, agent id |

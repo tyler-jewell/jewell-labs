@@ -21,7 +21,7 @@ pub struct SourceMeta {
     /// Capability tags: coding, tool_call, autonomy, terminal, assistant, multi_step, ...
     #[serde(default)]
     pub tags: Vec<String>,
-    /// When false, excluded from default discovery (e.g. legacy-local).
+    /// When false, excluded from default discovery.
     #[serde(default = "default_true")]
     pub enabled: bool,
     #[serde(default)]
