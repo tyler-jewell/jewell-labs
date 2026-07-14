@@ -1,8 +1,6 @@
 //! SessionStore: disk-backed session CRUD and search.
 
-use super::types::{
-    ChatSession, MessageHit, SessionError, SessionMessage, SessionSummary,
-};
+use super::types::{ChatSession, MessageHit, SessionError, SessionMessage, SessionSummary};
 use crate::agents::parse_agent_ref;
 use chrono::Utc;
 use std::fs;

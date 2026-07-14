@@ -96,7 +96,11 @@ impl GroundTruth {
             .and_then(|a| a.as_array())
             .into_iter()
             .flatten()
-            .filter_map(|t| t.get("name").and_then(|x| x.as_str()).map(|s| s.to_string()))
+            .filter_map(|t| {
+                t.get("name")
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.to_string())
+            })
             .collect();
 
         let tool_categories: BTreeSet<String> = list_tools

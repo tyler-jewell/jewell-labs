@@ -56,3 +56,20 @@ tool_call = [
   "-t", "none",
   "--ignore-rules",
 ]
+# Coding track: file + terminal so Hermes can write solution.py in the workspace.
+coding = [
+  "chat",
+  "-q", "{prompt}",
+  "-Q",
+  "--yolo",
+  "--max-turns", "20",
+  "-t", "terminal,file",
+]
+terminal = [
+  "chat",
+  "-q", "{prompt}",
+  "-Q",
+  "--yolo",
+  "--max-turns", "25",
+  "-t", "terminal,file",
+]

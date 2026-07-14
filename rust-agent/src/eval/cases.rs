@@ -4,8 +4,8 @@ use super::ground_truth::{CaseResult, GroundTruth};
 use super::scoring::{fact, score_introspection};
 use crate::agent_run::run_tool_plan;
 use crate::agents::{
-    load_agent, AGENT_IMPLEMENTOR_ID, CORE_AGENT_ID, CORE_AGENT_TOOLS, LEARNER_ID,
-    TEAM_AGENT_IDS, TOOL_IMPLEMENTOR_ID,
+    load_agent, AGENT_IMPLEMENTOR_ID, CORE_AGENT_ID, CORE_AGENT_TOOLS, LEARNER_ID, TEAM_AGENT_IDS,
+    TOOL_IMPLEMENTOR_ID,
 };
 use crate::paths::{agents_dir, crate_root, registry_path, repo_root, sessions_dir};
 use crate::tools::{all_tool_names, ToolContext};

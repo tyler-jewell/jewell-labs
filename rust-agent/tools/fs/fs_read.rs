@@ -9,7 +9,8 @@ pub fn spec() -> ToolSpec {
     ToolSpec {
         name: "fs_read".into(),
         category: "fs".into(),
-        description: "Read a text file from the agent sandbox (relative path, e.g. data.csv).".into(),
+        description: "Read a text file from the agent sandbox (relative path, e.g. data.csv)."
+            .into(),
         parameters: json!({
             "type": "object",
             "properties": {

@@ -62,8 +62,7 @@ pub fn run(ctx: &ToolContext, args: &Value) -> Result<Value, ToolError> {
         require_substrings,
     };
 
-    let report =
-        learn_improve(&ctx.agents_dir, &req).map_err(|e| ToolError::Msg(e.to_string()))?;
+    let report = learn_improve(&ctx.agents_dir, &req).map_err(|e| ToolError::Msg(e.to_string()))?;
     let path = write_learn_report(
         &report,
         repo_root().join("evals/runs").join(format!(

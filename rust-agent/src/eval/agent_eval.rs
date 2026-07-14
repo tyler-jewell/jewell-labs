@@ -39,11 +39,11 @@ pub fn parse_dataset(text: &str) -> Result<Vec<DatasetCase>, EvalError> {
     let mut require = Vec::new();
     let mut forbid = Vec::new();
     let flush = |id: &mut Option<String>,
-                     track: &str,
-                     prompt: &str,
-                     require: &[String],
-                     forbid: &[String],
-                     cases: &mut Vec<DatasetCase>|
+                 track: &str,
+                 prompt: &str,
+                 require: &[String],
+                 forbid: &[String],
+                 cases: &mut Vec<DatasetCase>|
      -> Result<(), EvalError> {
         if let Some(cid) = id.take() {
             if track == "tool_plan" && require.is_empty() {
@@ -94,10 +94,16 @@ fn parse_list(s: &str) -> Vec<String> {
         .collect()
 }
 pub fn dataset_path_for(agent_id: &str) -> PathBuf {
-let parts: Vec<_> = agent_id.split('/').collect();
-let mut p = repo_root().join("evals/datasets");
-for (i, part) in parts.iter().enumerate() { if i + 1 == parts.len() { p.push(format!("{part}.md")); } else { p.push(part); } }
-p
+    let parts: Vec<_> = agent_id.split('/').collect();
+    let mut p = repo_root().join("evals/datasets");
+    for (i, part) in parts.iter().enumerate() {
+        if i + 1 == parts.len() {
+            p.push(format!("{part}.md"));
+        } else {
+            p.push(part);
+        }
+    }
+    p
 }
 fn agent_ctx(agent_id: &str) -> Result<(ToolContext, crate::schema::AgentDocument), EvalError> {
     let agents = agents_dir();
@@ -148,18 +154,44 @@ fn score(case: &DatasetCase, called: &[String], ok: bool) -> (Vec<super::FactRes
     for t in &case.require_tools {
         // run_eval is claim-only during nested-safe plans
         if t == "run_eval" {
-            let reg = crate::tools::all_tool_names().iter().any(|n| n == "run_eval");
-            facts.push(fact("req_run_eval", "run_eval registered", reg, t, if reg { t } else { "missing" }));
+            let reg = crate::tools::all_tool_names()
+                .iter()
+                .any(|n| n == "run_eval");
+            facts.push(fact(
+                "req_run_eval",
+                "run_eval registered",
+                reg,
+                t,
+                if reg { t } else { "missing" },
+            ));
             continue;
         }
         let hit = set.contains(t);
-        facts.push(fact(&format!("req_{t}"), t, hit, t, if hit { t } else { "missing" }));
+        facts.push(fact(
+            &format!("req_{t}"),
+            t,
+            hit,
+            t,
+            if hit { t } else { "missing" },
+        ));
     }
     for t in &case.forbid_tools {
         let abs = !set.contains(t);
-        facts.push(fact(&format!("forb_{t}"), t, abs, "absent", if abs { "absent" } else { t }));
+        facts.push(fact(
+            &format!("forb_{t}"),
+            t,
+            abs,
+            "absent",
+            if abs { "absent" } else { t },
+        ));
     }
-    facts.push(fact("tools_ok", "ok", ok, "ok", if ok { "ok" } else { "fail" }));
+    facts.push(fact(
+        "tools_ok",
+        "ok",
+        ok,
+        "ok",
+        if ok { "ok" } else { "fail" },
+    ));
     let correct = facts.iter().all(|f| f.correct);
     (facts, correct)
 }

@@ -77,7 +77,8 @@ pub fn resolve_in_sandbox(root: &Path, rel: &str) -> Result<PathBuf, ToolError> 
         // Ensure parent chain stays under root
         if let Some(parent) = abs.parent() {
             if parent.exists() {
-                let pmeta = fs::symlink_metadata(parent).map_err(|e| ToolError::Msg(e.to_string()))?;
+                let pmeta =
+                    fs::symlink_metadata(parent).map_err(|e| ToolError::Msg(e.to_string()))?;
                 if pmeta.file_type().is_symlink() {
                     return Err(ToolError::Msg("symlink parent refused".into()));
                 }

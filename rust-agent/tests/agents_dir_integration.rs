@@ -20,17 +20,17 @@ fn core_orchestrator_is_loadable() {
     assert_eq!(orch.frontmatter.default_model, "qwen3-4b");
     let claimed: BTreeSet<_> = CORE_AGENT_TOOLS.iter().map(|s| (*s).to_string()).collect();
     let fm: BTreeSet<_> = orch.frontmatter.tools.iter().cloned().collect();
-    assert_eq!(
-        fm, claimed,
-        "frontmatter tools must match CORE_AGENT_TOOLS"
-    );
+    assert_eq!(fm, claimed, "frontmatter tools must match CORE_AGENT_TOOLS");
     let reg: BTreeSet<_> = all_tool_names().into_iter().collect();
     assert!(
         claimed.is_subset(&reg),
         "CORE tools must be ⊆ registry; missing {:?}",
         claimed.difference(&reg)
     );
-    assert!(reg.len() > claimed.len(), "registry has specialist tools too");
+    assert!(
+        reg.len() > claimed.len(),
+        "registry has specialist tools too"
+    );
     let text = std::fs::read_to_string(&orch.path).unwrap();
     let cert = certify_agent_markdown(&text);
     assert!(cert.ok, "core agent cert errors: {:?}", cert.errors);
@@ -42,13 +42,7 @@ fn core_orchestrator_is_loadable() {
 fn orchestrator_body_is_policy_ssot() {
     let orch = load_agent(agents_dir(), CORE_AGENT_ID).expect("load orchestrator");
     let body = orch.body.to_ascii_lowercase();
-    for required in [
-        "fs_write",
-        "tool_result",
-        "no_tool",
-        "tools:",
-        "list_tools",
-    ] {
+    for required in ["fs_write", "tool_result", "no_tool", "tools:", "list_tools"] {
         assert!(
             body.contains(required),
             "orchestrator body must cover {required:?} (policy SSoT); body={}",
@@ -77,10 +71,7 @@ fn orchestrator_body_is_policy_ssot() {
         let text = std::fs::read_to_string(&path)
             .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
         // Strip cfg(test) modules so test strings cannot false-positive.
-        let production = text
-            .split("#[cfg(test)]")
-            .next()
-            .unwrap_or(&text);
+        let production = text.split("#[cfg(test)]").next().unwrap_or(&text);
         for b in banned {
             assert!(
                 !production.contains(b),

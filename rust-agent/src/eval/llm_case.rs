@@ -32,7 +32,13 @@ async fn run_llm_case_with_fallback(
     ep.max_tokens = 96;
 
     match run_agent_with_tools(&ep, &system, &[], &fewshot_user, ctx).await {
-        Ok(r) if r.tool_rounds.iter().any(|t| t.call.name == tool_name && t.result.ok) => r,
+        Ok(r)
+            if r.tool_rounds
+                .iter()
+                .any(|t| t.call.name == tool_name && t.result.ok) =>
+        {
+            r
+        }
         Ok(r) => {
             let mut plan_run = run_tool_plan(ctx, &[(tool_name.to_string(), args)]);
             plan_run.raw_assistant_messages = r.raw_assistant_messages;
@@ -97,8 +103,12 @@ pub async fn run_llm_case(
         "list_models",
     ];
     let facts = score_introspection(gt, &run, &require);
-    let has_agent_truth = facts.iter().any(|f| f.id == "has_core_orchestrator" && f.correct);
-    let has_tool_truth = facts.iter().any(|f| f.id == "all_tools_present" && f.correct);
+    let has_agent_truth = facts
+        .iter()
+        .any(|f| f.id == "has_core_orchestrator" && f.correct);
+    let has_tool_truth = facts
+        .iter()
+        .any(|f| f.id == "all_tools_present" && f.correct);
     let correct = has_agent_truth && has_tool_truth && run.tool_rounds.iter().any(|r| r.result.ok);
     let tools_called = run.tool_names_called();
     let tool_results_ok = run.all_tool_ok();

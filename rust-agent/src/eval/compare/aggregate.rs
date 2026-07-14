@@ -31,10 +31,7 @@ pub fn summarize_items(items: &[CompareItem]) -> CompareSummary {
 
         let mut by_task: BTreeMap<String, Vec<f64>> = BTreeMap::new();
         for r in &scored {
-            by_task
-                .entry(r.task_id.clone())
-                .or_default()
-                .push(r.score);
+            by_task.entry(r.task_id.clone()).or_default().push(r.score);
         }
         let mut task_avgs = Vec::new();
         let mut task_floors = Vec::new();

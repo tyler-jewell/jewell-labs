@@ -63,14 +63,10 @@ pub fn resolve_agent_path(
     let path = dir.join(&category).join(format!("{name}.md"));
 
     let expected_rel = format!("{category}/{name}.md");
-    if path
-        .strip_prefix(dir)
-        .ok()
-        .and_then(|rel| {
-            rel.to_str()
-                .map(|s| s == expected_rel || s.replace('\\', "/") == expected_rel)
-        })
-        != Some(true)
+    if path.strip_prefix(dir).ok().and_then(|rel| {
+        rel.to_str()
+            .map(|s| s == expected_rel || s.replace('\\', "/") == expected_rel)
+    }) != Some(true)
     {
         return Err(AgentsError::PathEscape(agent_ref.to_string()));
     }

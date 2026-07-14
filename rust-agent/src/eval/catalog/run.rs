@@ -122,7 +122,8 @@ pub fn run_catalog_sample(opts: &CatalogRunOpts) -> Result<CatalogRunReport, Str
         preflight_eval_model(&model)?;
     }
 
-    let all = load_catalog_items(&opts.sources, opts.include_disabled).map_err(|e| e.to_string())?;
+    let all =
+        load_catalog_items(&opts.sources, opts.include_disabled).map_err(|e| e.to_string())?;
     let filter = CatalogFilter {
         sources: opts.sources.clone(),
         tags_all: opts.tags_all.clone(),
@@ -388,8 +389,7 @@ pub fn build_instruction(item: &CatalogItem) -> String {
     if !item.tools.is_empty() {
         // Neutral tool payload — same bytes for every vendor.
         s.push_str("Tools:\n");
-        let tools_json =
-            serde_json::to_string_pretty(&item.tools).unwrap_or_else(|_| "[]".into());
+        let tools_json = serde_json::to_string_pretty(&item.tools).unwrap_or_else(|_| "[]".into());
         s.push_str(&tools_json);
         s.push_str("\n\n");
     }

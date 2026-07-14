@@ -25,7 +25,12 @@ pub fn wire_evals(document: &Document) -> Result<(), JsValue> {
     Ok(())
 }
 
-fn bind_run(document: &Document, list: &Element, btn_id: &str, suite: &'static str) -> Result<(), JsValue> {
+fn bind_run(
+    document: &Document,
+    list: &Element,
+    btn_id: &str,
+    suite: &'static str,
+) -> Result<(), JsValue> {
     let Some(btn) = document.get_element_by_id(btn_id) else {
         return Ok(());
     };
@@ -50,7 +55,8 @@ fn bind_run(document: &Document, list: &Element, btn_id: &str, suite: &'static s
 
 async fn reload(document: &Document, list: &Element, pick: Option<&str>) -> Result<(), JsValue> {
     list.set_inner_html("<li class=\"muted\">Loading…</li>");
-    let v: Value = serde_json::from_str(&get("/api/evals/runs?limit=40").await?).unwrap_or(Value::Null);
+    let v: Value =
+        serde_json::from_str(&get("/api/evals/runs?limit=40").await?).unwrap_or(Value::Null);
     let runs = v
         .get("runs")
         .and_then(|r| r.as_array())
@@ -170,7 +176,10 @@ fn paint(card: &Element, r: &Value) -> Result<(), JsValue> {
     }
 
     let s = r.get("summary");
-    let total = s.and_then(|x| x.get("total")).and_then(|x| x.as_u64()).unwrap_or(0) as usize;
+    let total = s
+        .and_then(|x| x.get("total"))
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0) as usize;
     let correct = s
         .and_then(|x| x.get("correct"))
         .and_then(|x| x.as_u64())
@@ -190,7 +199,11 @@ fn paint(card: &Element, r: &Value) -> Result<(), JsValue> {
     } else {
         stem
     };
-    let (b, t) = if ok { ("pass", "PASS") } else { ("fail", "FAIL") };
+    let (b, t) = if ok {
+        ("pass", "PASS")
+    } else {
+        ("fail", "FAIL")
+    };
     let sc = if total > 0 {
         format!("{correct}/{total}")
     } else {
@@ -241,7 +254,10 @@ fn paint_compare(card: &Element, r: &Value) -> Result<(), JsValue> {
         .and_then(|x| x.get("harnesses"))
         .and_then(|h| h.as_object());
     let rid = r.get("id").and_then(|x| x.as_str()).unwrap_or("compare");
-    let total = s.and_then(|x| x.get("total")).and_then(|x| x.as_u64()).unwrap_or(0);
+    let total = s
+        .and_then(|x| x.get("total"))
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
     let correct = s
         .and_then(|x| x.get("correct"))
         .and_then(|x| x.as_u64())
@@ -255,7 +271,10 @@ fn paint_compare(card: &Element, r: &Value) -> Result<(), JsValue> {
     if let Some(hs) = harnesses {
         for (name, row) in hs {
             let avg = row.get("avg_score").and_then(|x| x.as_f64()).unwrap_or(0.0);
-            let solid = row.get("solid_base").and_then(|x| x.as_f64()).unwrap_or(0.0);
+            let solid = row
+                .get("solid_base")
+                .and_then(|x| x.as_f64())
+                .unwrap_or(0.0);
             let pr = row.get("pass_rate").and_then(|x| x.as_f64()).unwrap_or(0.0);
             let n_scored = row.get("n_scored").and_then(|x| x.as_u64()).unwrap_or(0);
             let n_skip = row.get("n_skip").and_then(|x| x.as_u64()).unwrap_or(0);
@@ -359,10 +378,22 @@ fn paint_catalog(card: &Element, r: &Value) -> Result<(), JsValue> {
         .map(|a| a.len())
         .unwrap_or(0);
     let s = r.get("summary");
-    let n_pass = s.and_then(|x| x.get("correct")).and_then(|x| x.as_u64()).unwrap_or(0);
-    let n_scored = s.and_then(|x| x.get("n_scored")).and_then(|x| x.as_u64()).unwrap_or(0);
-    let n_skip = s.and_then(|x| x.get("n_skip")).and_then(|x| x.as_u64()).unwrap_or(0);
-    let acc = s.and_then(|x| x.get("accuracy")).and_then(|x| x.as_f64()).unwrap_or(0.0);
+    let n_pass = s
+        .and_then(|x| x.get("correct"))
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+    let n_scored = s
+        .and_then(|x| x.get("n_scored"))
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+    let n_skip = s
+        .and_then(|x| x.get("n_skip"))
+        .and_then(|x| x.as_u64())
+        .unwrap_or(0);
+    let acc = s
+        .and_then(|x| x.get("accuracy"))
+        .and_then(|x| x.as_f64())
+        .unwrap_or(0.0);
 
     let mut by_src = String::from(
         "<h3 class=\"eval-subh\">By source</h3><table class=\"eval-board\"><thead><tr>\
@@ -543,7 +574,12 @@ fn status(document: &Document, msg: &str, show: bool) {
 }
 
 fn busy(document: &Document, on: bool) {
-    for id in ["btn-run-team", "btn-run-agent", "btn-run-catalog", "btn-run-compare"] {
+    for id in [
+        "btn-run-team",
+        "btn-run-agent",
+        "btn-run-catalog",
+        "btn-run-compare",
+    ] {
         if let Some(el) = document.get_element_by_id(id) {
             if let Ok(btn) = el.dyn_into::<HtmlButtonElement>() {
                 btn.set_disabled(on);

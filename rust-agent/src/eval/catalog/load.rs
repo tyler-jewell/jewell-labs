@@ -98,10 +98,7 @@ pub fn load_source_meta(dir: &Path) -> std::io::Result<SourceMeta> {
         .get("tags")
         .map(|s| parse_list_field(s))
         .unwrap_or_default();
-    let enabled = m
-        .get("enabled")
-        .map(|s| parse_bool(s))
-        .unwrap_or(true);
+    let enabled = m.get("enabled").map(|s| parse_bool(s)).unwrap_or(true);
     let notes = m
         .get("notes")
         .map(|s| s.trim_matches('"').to_string())
@@ -124,9 +121,8 @@ pub fn load_source_meta(dir: &Path) -> std::io::Result<SourceMeta> {
 /// Hydrate catalog items from the source's online remote (remote.toml).
 /// Hard-coded `items.jsonl` task bodies are rejected.
 pub fn load_items(source: &SourceMeta) -> std::io::Result<Vec<CatalogItem>> {
-    assert_no_hardcoded_items(&source.path).map_err(|e| {
-        std::io::Error::new(std::io::ErrorKind::InvalidData, e)
-    })?;
+    assert_no_hardcoded_items(&source.path)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
     if !source.path.join("remote.toml").is_file() {
         return Err(std::io::Error::new(
             std::io::ErrorKind::NotFound,
@@ -190,6 +186,21 @@ fn remote_ref_count(source: &SourceMeta) -> Option<usize> {
         "swe_bench_github_pr" => {
             let ids = m.get("instance_ids").map(|s| parse_list_field(s))?;
             Some(ids.len())
+        }
+        "mbpp_github" | "humaneval_github" => {
+            let max = m
+                .get("max_items")
+                .and_then(|s| s.trim().trim_matches('"').parse().ok())
+                .unwrap_or(12usize);
+            let only = m
+                .get("task_ids")
+                .map(|s| parse_list_field(s))
+                .unwrap_or_default();
+            if only.is_empty() {
+                Some(max)
+            } else {
+                Some(only.len())
+            }
         }
         _ => None,
     }

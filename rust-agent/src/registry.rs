@@ -53,10 +53,7 @@ impl ModelRegistry {
         Ok(ResolvedModel {
             key: key.to_string(),
             path,
-            alias: spec
-                .alias
-                .clone()
-                .unwrap_or_else(|| key.to_string()),
+            alias: spec.alias.clone().unwrap_or_else(|| key.to_string()),
             defaults: spec.defaults.clone(),
         })
     }

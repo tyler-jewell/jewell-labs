@@ -11,12 +11,7 @@ use tower::ServiceExt;
 async fn json_get(path: &str) -> (StatusCode, Value) {
     let app = build_router(default_state());
     let res = app
-        .oneshot(
-            Request::builder()
-                .uri(path)
-                .body(Body::empty())
-                .unwrap(),
-        )
+        .oneshot(Request::builder().uri(path).body(Body::empty()).unwrap())
         .await
         .unwrap();
     let status = res.status();
@@ -48,7 +43,12 @@ async fn json_post(path: &str, body: Value) -> (StatusCode, Value) {
 async fn healthz_ok() {
     let app = build_router(default_state());
     let res = app
-        .oneshot(Request::builder().uri("/healthz").body(Body::empty()).unwrap())
+        .oneshot(
+            Request::builder()
+                .uri("/healthz")
+                .body(Body::empty())
+                .unwrap(),
+        )
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
@@ -72,10 +72,7 @@ async fn home_redirects_to_orchestrator() {
         .and_then(|v| v.to_str().ok())
         .unwrap_or("");
     if !loc.is_empty() {
-        assert!(
-            loc.contains("core/orchestrator"),
-            "location={loc}"
-        );
+        assert!(loc.contains("core/orchestrator"), "location={loc}");
     }
 }
 
@@ -92,16 +89,13 @@ async fn orchestrator_page_agents_only_sidebar() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
-    let body = String::from_utf8(
-        res.into_body().collect().await.unwrap().to_bytes().to_vec(),
-    )
-    .unwrap();
+    let body =
+        String::from_utf8(res.into_body().collect().await.unwrap().to_bytes().to_vec()).unwrap();
     assert!(body.contains("Agents") || body.contains("agents"));
     assert!(body.contains("orchestrator"));
     // tools are metadata chips, not peer sidebar nav
     assert!(
-        !body.contains("sidebar-path\">tools/")
-            && !body.contains("aria-label=\"Tools\""),
+        !body.contains("sidebar-path\">tools/") && !body.contains("aria-label=\"Tools\""),
         "tools must not be peer sidebar nav"
     );
     assert!(body.contains("tool-meta") || body.contains("tool-chips"));
@@ -113,7 +107,10 @@ async fn orchestrator_page_agents_only_sidebar() {
         body.contains("/static/pkg/boot.js"),
         "must load WASM bootstrap only"
     );
-    assert!(!body.contains("/static/app.js"), "product app.js must be gone");
+    assert!(
+        !body.contains("/static/app.js"),
+        "product app.js must be gone"
+    );
 }
 
 #[tokio::test]
@@ -125,10 +122,8 @@ async fn wasm_pkg_glue_served() {
             .await
             .unwrap();
         assert_eq!(res.status(), StatusCode::OK, "{uri}");
-        let body = String::from_utf8(
-            res.into_body().collect().await.unwrap().to_bytes().to_vec(),
-        )
-        .unwrap();
+        let body = String::from_utf8(res.into_body().collect().await.unwrap().to_bytes().to_vec())
+            .unwrap();
         assert!(
             body.contains("GENERATED")
                 || body.contains("wasm")
@@ -208,10 +203,8 @@ async fn agent_page_and_schema_tab_render() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
-    let body = String::from_utf8(
-        res.into_body().collect().await.unwrap().to_bytes().to_vec(),
-    )
-    .unwrap();
+    let body =
+        String::from_utf8(res.into_body().collect().await.unwrap().to_bytes().to_vec()).unwrap();
     assert!(body.contains("orchestrator") || body.contains("core/orchestrator"));
     assert!(body.contains("src/schema.rs") || body.contains("Schema"));
 }
@@ -238,10 +231,8 @@ async fn evals_page_and_list_api() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
-    let body = String::from_utf8(
-        res.into_body().collect().await.unwrap().to_bytes().to_vec(),
-    )
-    .unwrap();
+    let body =
+        String::from_utf8(res.into_body().collect().await.unwrap().to_bytes().to_vec()).unwrap();
     assert!(body.contains("eval-run-list"));
     assert!(body.contains("btn-run-team") || body.contains("Run team gate"));
     assert!(body.contains("eval-result"));

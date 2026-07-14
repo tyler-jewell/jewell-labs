@@ -57,8 +57,7 @@ pub fn run(ctx: &ToolContext, args: &Value) -> Result<Value, ToolError> {
         .repo_root
         .join("evals/runs")
         .join(format!("{}.json", report.id));
-    let path =
-        write_research_report(&report, &out).map_err(|e| ToolError::Msg(e.to_string()))?;
+    let path = write_research_report(&report, &out).map_err(|e| ToolError::Msg(e.to_string()))?;
     report.report_path = Some(path.display().to_string());
 
     Ok(serde_json::to_value(&report).unwrap_or(json!({"error": "serialize"})))

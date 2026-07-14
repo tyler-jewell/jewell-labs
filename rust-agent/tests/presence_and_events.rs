@@ -38,7 +38,10 @@ async fn presence_api_lists_agents_with_idle_or_busy() {
     assert_eq!(orch["status"], "busy");
     assert_eq!(orch["session_id"], "sess-1");
     // Groups present for project path grouping
-    assert!(v["groups"].as_array().map(|g| !g.is_empty()).unwrap_or(false));
+    assert!(v["groups"]
+        .as_array()
+        .map(|g| !g.is_empty())
+        .unwrap_or(false));
 }
 
 #[tokio::test]
@@ -54,10 +57,8 @@ async fn agent_page_renders_presence_chrome_and_run_events() {
         .await
         .unwrap();
     assert_eq!(res.status(), StatusCode::OK);
-    let body = String::from_utf8(
-        res.into_body().collect().await.unwrap().to_bytes().to_vec(),
-    )
-    .unwrap();
+    let body =
+        String::from_utf8(res.into_body().collect().await.unwrap().to_bytes().to_vec()).unwrap();
     assert!(body.contains("viewport"), "viewport meta");
     assert!(body.contains("presence") || body.contains("data-presence"));
     assert!(body.contains("run-events") || body.contains("id=\"run-events\""));
@@ -73,9 +74,7 @@ fn board_and_sse_normalization_shipped_path() {
     assert_eq!(board.snapshot()[0].status.as_str(), "idle");
 
     // Drive real parse_sse_data_line → run_event_from_sse (same as WASM client).
-    let tool = parse_sse_data_line(
-        r#"data: {"tool_call":{"name":"list_tools","arguments":{}}}"#,
-    );
+    let tool = parse_sse_data_line(r#"data: {"tool_call":{"name":"list_tools","arguments":{}}}"#);
     let re = run_event_from_sse(&tool).expect("tool event");
     assert_eq!(re.kind, RunKind::ToolCall);
 

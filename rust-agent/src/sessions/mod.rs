@@ -5,9 +5,7 @@ mod store;
 mod types;
 
 pub use store::SessionStore;
-pub use types::{
-    ChatSession, MessageHit, SessionError, SessionMessage, SessionSummary,
-};
+pub use types::{ChatSession, MessageHit, SessionError, SessionMessage, SessionSummary};
 
 #[cfg(test)]
 mod tests {
@@ -34,17 +32,12 @@ mod tests {
             })
             .unwrap();
         assert_eq!(s.id, "sess-1");
-        assert!(dir
-            .path()
-            .join("system/learner/sess-1.json")
-            .is_file());
+        assert!(dir.path().join("system/learner/sess-1.json").is_file());
 
         let list = store.list(Some("system/learner")).unwrap();
         assert_eq!(list.len(), 1);
 
-        let hits = store
-            .search("pi", Some("system/learner"), 10)
-            .unwrap();
+        let hits = store.search("pi", Some("system/learner"), 10).unwrap();
         assert_eq!(hits.len(), 1);
     }
 

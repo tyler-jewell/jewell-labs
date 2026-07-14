@@ -68,7 +68,10 @@ fn grade_closed_form(ws: &Path) -> Grade {
             .collect();
         nums.last().map(|s| s.to_string()).unwrap_or_default()
     };
-    let extracted_n: String = extracted.chars().filter(|c| c.is_ascii_digit() || *c == '-').collect();
+    let extracted_n: String = extracted
+        .chars()
+        .filter(|c| c.is_ascii_digit() || *c == '-')
+        .collect();
     let gold = "18";
     let correct = extracted_n == gold || extracted.trim() == gold;
     let mut metrics = Map::new();
@@ -110,11 +113,7 @@ fn grade_multi_step(ws: &Path) -> Grade {
             correct: false,
             score: 0.0,
             metrics: Map::new(),
-            detail: format!(
-                "notes={} summary={}",
-                notes.is_file(),
-                summary.is_file()
-            ),
+            detail: format!("notes={} summary={}", notes.is_file(), summary.is_file()),
             grader_ok: true,
         };
     }
@@ -239,11 +238,7 @@ print(json.dumps({{"correct": ok == len(cases), "score": score, "metrics": {{"ca
 "#,
         path = path.display().to_string()
     );
-    let out = Command::new("python3")
-        .arg("-c")
-        .arg(&py)
-        .output()
-        .ok()?;
+    let out = Command::new("python3").arg("-c").arg(&py).output().ok()?;
     if !out.status.success() {
         return None;
     }
@@ -267,15 +262,15 @@ fn grade_fizzbuzz(ws: &Path) -> Grade {
     if let Some(g) = python_grade_fizzbuzz(&path) {
         return g;
     }
-    // Structural: file exists and defines fizzbuzz
+    // Structural-only: never mark correct without behavioral python3 grade.
     let src = fs::read_to_string(&path).unwrap_or_default();
     let ok = src.contains("def fizzbuzz") && src.contains("FizzBuzz");
     Grade {
-        correct: ok,
+        correct: false,
         score: if ok { 0.5 } else { 0.0 },
         metrics: Map::new(),
         detail: if ok {
-            "structural fizzbuzz (python3 unavailable)".into()
+            "structural fizzbuzz only (python3 unavailable); correct=false".into()
         } else {
             "no fizzbuzz def".into()
         },
@@ -304,11 +299,7 @@ print(json.dumps({{"correct": fn_ok and main_ok, "score": score, "metrics": {{"f
 "#,
         path = path.display().to_string()
     );
-    let out = Command::new("python3")
-        .arg("-c")
-        .arg(&py)
-        .output()
-        .ok()?;
+    let out = Command::new("python3").arg("-c").arg(&py).output().ok()?;
     if !out.status.success() {
         return None;
     }
@@ -329,10 +320,7 @@ fn grade_legacy_check_py(task_path: &Path, workspace: &Path) -> Grade {
             grader_ok: false,
         };
     }
-    let out = Command::new("python3")
-        .arg(&check)
-        .arg(workspace)
-        .output();
+    let out = Command::new("python3").arg(&check).arg(workspace).output();
     match out {
         Ok(o) => {
             let stdout = String::from_utf8_lossy(&o.stdout);
@@ -407,11 +395,7 @@ mod tests {
     #[test]
     fn multi_step_gold() {
         let d = tempdir().unwrap();
-        fs::write(
-            d.path().join("notes.md"),
-            "- alpha\n- beta\n- gamma\n",
-        )
-        .unwrap();
+        fs::write(d.path().join("notes.md"), "- alpha\n- beta\n- gamma\n").unwrap();
         fs::write(d.path().join("summary.txt"), "topics: alpha, beta, gamma\n").unwrap();
         let g = grade_multi_step(d.path());
         assert!(g.correct);

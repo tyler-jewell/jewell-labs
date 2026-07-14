@@ -1,6 +1,4 @@
-//! Legacy local Harbor compare harness: synthetic tasks were removed.
-//! Public evals live in online catalog (`eval_catalog`). These tests keep
-//! pure scoring helpers and assert the local tasks dir no longer ships smokes.
+//! Compare harness scoring helpers and local tasks-dir checks.
 
 use rust_agent::eval::compare::{solid_base, summarize_items, CompareItem};
 use std::collections::BTreeMap;

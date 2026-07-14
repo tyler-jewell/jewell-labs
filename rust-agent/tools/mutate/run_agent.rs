@@ -39,16 +39,20 @@ pub fn spec() -> ToolSpec {
 }
 
 pub fn run(ctx: &ToolContext, args: &Value) -> Result<Value, ToolError> {
-    let agent_id = arg_str(args, "agent_id").ok_or_else(|| ToolError::Args("agent_id required".into()))?;
+    let agent_id =
+        arg_str(args, "agent_id").ok_or_else(|| ToolError::Args("agent_id required".into()))?;
     let message = arg_str(args, "message").unwrap_or_default();
     let dry_run = arg_bool(args, "dry_run", false);
-    let max_rounds = (arg_u64(args, "max_rounds", MAX_TOOL_ROUNDS as u64) as usize).min(MAX_TOOL_ROUNDS);
+    let max_rounds =
+        (arg_u64(args, "max_rounds", MAX_TOOL_ROUNDS as u64) as usize).min(MAX_TOOL_ROUNDS);
 
     if get_agent_run_depth() >= 1 {
         return Err(ToolError::Msg("agent_run_depth_exceeded".into()));
     }
     if agent_id == CORE_AGENT_ID {
-        return Err(ToolError::Msg("cannot run_agent on core/orchestrator".into()));
+        return Err(ToolError::Msg(
+            "cannot run_agent on core/orchestrator".into(),
+        ));
     }
     if ctx.caller_agent.as_deref() == Some(agent_id.as_str()) {
         return Err(ToolError::Msg("cannot run_agent on self".into()));
@@ -68,7 +72,8 @@ pub fn run(ctx: &ToolContext, args: &Value) -> Result<Value, ToolError> {
         }));
     }
 
-    let registry = ModelRegistry::load(&ctx.registry_path).map_err(|e| ToolError::Msg(e.to_string()))?;
+    let registry =
+        ModelRegistry::load(&ctx.registry_path).map_err(|e| ToolError::Msg(e.to_string()))?;
     let model = registry
         .resolve(&doc.frontmatter.default_model)
         .map_err(|e| ToolError::Msg(e.to_string()))?;

@@ -9,9 +9,9 @@ mod model;
 pub use load::{default_vendor_ids, load_vendor_manifests, vendors_dir, VendorManifest};
 pub use model::{load_eval_model, preflight_eval_model, EvalModel};
 
+use crate::eval::compare::AdapterResult;
 use cli::CliVendor;
 use jewell::JewellVendor;
-use crate::eval::compare::AdapterResult;
 use std::path::{Path, PathBuf};
 
 /// Per-item run context.

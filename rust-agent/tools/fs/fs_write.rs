@@ -10,7 +10,8 @@ pub fn spec() -> ToolSpec {
     ToolSpec {
         name: "fs_write".into(),
         category: "fs".into(),
-        description: "Write a text file under the agent sandbox (relative path, e.g. out.csv).".into(),
+        description: "Write a text file under the agent sandbox (relative path, e.g. out.csv)."
+            .into(),
         parameters: json!({
             "type": "object",
             "properties": {
@@ -27,7 +28,9 @@ pub fn run(ctx: &ToolContext, args: &Value) -> Result<Value, ToolError> {
     let content =
         arg_str(args, "content").ok_or_else(|| ToolError::Args("content required".into()))?;
     if rel.trim().is_empty() || rel.trim() == "." {
-        return Err(ToolError::Args("path must be a file under the sandbox".into()));
+        return Err(ToolError::Args(
+            "path must be a file under the sandbox".into(),
+        ));
     }
     let root = sandbox_root(ctx)?;
     let path = resolve_in_sandbox(&root, &rel)?;

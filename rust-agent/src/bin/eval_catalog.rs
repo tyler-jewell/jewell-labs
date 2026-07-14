@@ -87,7 +87,10 @@ fn main() -> ExitCode {
     if args.list_sources {
         match list_source_summaries(args.include_disabled) {
             Ok(list) => {
-                println!("{}", serde_json::to_string_pretty(&list).unwrap_or_default());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&list).unwrap_or_default()
+                );
                 return ExitCode::SUCCESS;
             }
             Err(e) => {
@@ -111,7 +114,10 @@ fn main() -> ExitCode {
                         })
                     })
                     .collect();
-                println!("{}", serde_json::to_string_pretty(&slim).unwrap_or_default());
+                println!(
+                    "{}",
+                    serde_json::to_string_pretty(&slim).unwrap_or_default()
+                );
                 if let Ok(d) = default_vendor_ids(None) {
                     eprintln!("default harnesses: {}", d.join(","));
                 }

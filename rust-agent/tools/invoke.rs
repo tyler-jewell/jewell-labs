@@ -21,16 +21,25 @@ pub(crate) fn all_entries() -> Vec<ToolEntry> {
         // introspect
         entry(introspect::list_tools::spec(), introspect::list_tools::run),
         entry(introspect::app_status::spec(), introspect::app_status::run),
-        entry(introspect::list_agents::spec(), introspect::list_agents::run),
+        entry(
+            introspect::list_agents::spec(),
+            introspect::list_agents::run,
+        ),
         entry(introspect::get_agent::spec(), introspect::get_agent::run),
         entry(
             introspect::certify_agent::spec(),
             introspect::certify_agent::run,
         ),
         entry(introspect::get_schema::spec(), introspect::get_schema::run),
-        entry(introspect::list_models::spec(), introspect::list_models::run),
+        entry(
+            introspect::list_models::spec(),
+            introspect::list_models::run,
+        ),
         // sessions (search folded into list_sessions via query=)
-        entry(sessions::list_sessions::spec(), sessions::list_sessions::run),
+        entry(
+            sessions::list_sessions::spec(),
+            sessions::list_sessions::run,
+        ),
         entry(sessions::get_session::spec(), sessions::get_session::run),
         entry(
             sessions::upsert_session::spec(),

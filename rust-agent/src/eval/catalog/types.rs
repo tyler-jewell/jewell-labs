@@ -39,7 +39,8 @@ fn default_true() -> bool {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GradeSpec {
-    /// exact | boxed | contains | tool_call | sandbox_skip | dry_marker | file_exact | file_lines_exact
+    /// exact | boxed | contains | tool_call | no_tool_call | sandbox_skip | dry_marker |
+    /// file_exact | file_lines_exact | solution_file (alias: python_workspace)
     pub kind: String,
     #[serde(default)]
     pub expected: Option<String>,

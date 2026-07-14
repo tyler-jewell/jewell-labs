@@ -25,7 +25,7 @@ pub mod server;
 pub mod sessions;
 pub mod tool_fs;
 
-/// Back-compat module path for eval (formerly `eval_introspection`).
+/// Module path alias for eval.
 pub use eval as eval_introspection;
 
 /// Tools live at `rust-agent/tools/{category}/{tool-name}.rs` (shared by src + agents).
@@ -39,13 +39,6 @@ pub use agents::{
     write_agent_file_unlocked, AgentListItem, AgentsError, AGENT_IMPLEMENTOR_ID, CORE_AGENT_ID,
     CORE_AGENT_TOOLS, LEARNER_ID, TEAM_AGENT_IDS, TOOL_IMPLEMENTOR_ID,
 };
-pub use jail::{agent_file_rel, JailError, WriteJail};
-pub use learn::{learn_improve, LearnReport, LearnRequest};
-pub use model_eval::{score_inference_target, score_project_eval, ProjectEvalScore};
-pub use model_research::{
-    model_fitness, project_tool_plan_score, run_model_research, write_research_report,
-    ModelResearchReport, ModelResearchRequest,
-};
 pub use chat::{complete_chat, stream_chat, ChatEndpoint, ChatError, ChatMessage, ChatRequest};
 pub use eval::{
     default_vendor_ids, eval_all_agents, evals_runs_dir, filter_items, known_harnesses,
@@ -55,6 +48,13 @@ pub use eval::{
     sample_items, write_eval_report, write_report, CatalogFilter, CatalogItem, CatalogRunOpts,
     CatalogRunReport, CompareItem, CompareOpts, CompareReport, EvalError, EvalModel, EvalReport,
     EvalRunSummary, GroundTruth, SourceSummary, VendorManifest,
+};
+pub use jail::{agent_file_rel, JailError, WriteJail};
+pub use learn::{learn_improve, LearnReport, LearnRequest};
+pub use model_eval::{score_inference_target, score_project_eval, ProjectEvalScore};
+pub use model_research::{
+    model_fitness, project_tool_plan_score, run_model_research, write_research_report,
+    ModelResearchReport, ModelResearchRequest,
 };
 // re-export probe via eval module
 pub use nav::{

@@ -2,9 +2,7 @@
 
 use super::{AdapterResult, HarnessAdapter};
 use crate::eval::compare::task::Task;
-use crate::eval::{
-    orchestrator_ctx, run_team_collaboration_case, run_tool_plan_case, GroundTruth,
-};
+use crate::eval::{orchestrator_ctx, run_team_collaboration_case, run_tool_plan_case, GroundTruth};
 use std::fs;
 use std::path::Path;
 use std::time::Instant;
@@ -18,8 +16,7 @@ impl JewellAdapter {
     pub fn new() -> Self {
         Self {
             base: std::env::var("JEWELL_BASE").unwrap_or_else(|_| "http://127.0.0.1:3000".into()),
-            agent: std::env::var("JEWELL_AGENT")
-                .unwrap_or_else(|_| "core/orchestrator".into()),
+            agent: std::env::var("JEWELL_AGENT").unwrap_or_else(|_| "core/orchestrator".into()),
         }
     }
 }
@@ -46,10 +43,7 @@ impl HarnessAdapter for JewellAdapter {
     fn run(&self, task: &Task, workspace: &Path, instruction: &str) -> AdapterResult {
         let (ok, missing) = self.can_run(task);
         if !ok {
-            return AdapterResult::skip(
-                format!("jewell lacks capabilities: {missing:?}"),
-                missing,
-            );
+            return AdapterResult::skip(format!("jewell lacks capabilities: {missing:?}"), missing);
         }
 
         if task.capabilities.iter().any(|c| c == "host_eval") {
@@ -88,10 +82,7 @@ impl JewellAdapter {
                 let code = if plan.correct && team.correct { 0 } else { 1 };
                 (
                     code,
-                    format!(
-                        "tool_plan={} team={}",
-                        plan.correct, team.correct
-                    ),
+                    format!("tool_plan={} team={}", plan.correct, team.correct),
                     "eval_introspection".to_string(),
                 )
             }
@@ -134,10 +125,7 @@ impl JewellAdapter {
         {
             Ok(r) => r,
             Err(e) => {
-                return AdapterResult::error(format!(
-                    "cannot reach jewell at {}: {e}",
-                    self.base
-                ));
+                return AdapterResult::error(format!("cannot reach jewell at {}: {e}", self.base));
             }
         };
         if !resp.status().is_success() {
@@ -199,7 +187,10 @@ impl JewellAdapter {
         let detail = if stream_err.is_empty() {
             "jewell chat stream completed".into()
         } else {
-            format!("partial stream: {}", &stream_err[..stream_err.len().min(120)])
+            format!(
+                "partial stream: {}",
+                &stream_err[..stream_err.len().min(120)]
+            )
         };
         AdapterResult {
             status: "ok".into(),

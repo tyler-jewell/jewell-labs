@@ -27,7 +27,10 @@ fn dry_run_leaves_disk_unchanged() {
     .unwrap();
     assert_eq!(rep.results[0].verdict, "would_keep");
     assert!(!rep.results[0].disk_changed);
-    assert_eq!(fs::read_to_string(d.path().join("lab/drybot.md")).unwrap(), base);
+    assert_eq!(
+        fs::read_to_string(d.path().join("lab/drybot.md")).unwrap(),
+        base
+    );
 }
 
 #[test]
@@ -57,7 +60,7 @@ fn bad_patch_reverts_good_keeps() {
         )
         .unwrap()
         .results[0]
-        .verdict,
+            .verdict,
         "keep"
     );
 }
@@ -67,7 +70,10 @@ fn max_diff_and_core_lock() {
     let d = tempdir().unwrap();
     fs::create_dir_all(d.path().join("lab")).unwrap();
     fs::write(d.path().join("lab/diffbot.md"), sample("diffbot", "x")).unwrap();
-    let big = sample("diffbot", &(0..50).map(|i| format!("l{i}\n")).collect::<String>());
+    let big = sample(
+        "diffbot",
+        &(0..50).map(|i| format!("l{i}\n")).collect::<String>(),
+    );
     assert_eq!(
         learn_improve(
             d.path(),
@@ -81,7 +87,7 @@ fn max_diff_and_core_lock() {
         )
         .unwrap()
         .results[0]
-        .verdict,
+            .verdict,
         "rejected"
     );
     assert_eq!(
@@ -97,7 +103,7 @@ fn max_diff_and_core_lock() {
         )
         .unwrap()
         .results[0]
-        .verdict,
+            .verdict,
         "rejected"
     );
 }

@@ -149,11 +149,7 @@ body
     #[test]
     fn core_agent_write_locked() {
         let dir = tempdir().unwrap();
-        let md = sample(
-            "orchestrator",
-            "orchestrator",
-            r#"["list_tools"]"#,
-        );
+        let md = sample("orchestrator", "orchestrator", r#"["list_tools"]"#);
         let err = write_agent_file(dir.path(), CORE_AGENT_ID, &md).unwrap_err();
         assert!(
             matches!(err, AgentsError::Jail(_)),
@@ -164,10 +160,11 @@ body
     #[test]
     fn symlink_write_does_not_damage_outside() {
         let dir = tempdir().unwrap();
-        let outside = dir.path().parent().unwrap().join(format!(
-            "outside-agent-{}",
-            std::process::id()
-        ));
+        let outside = dir
+            .path()
+            .parent()
+            .unwrap()
+            .join(format!("outside-agent-{}", std::process::id()));
         fs::write(&outside, b"SAFE").unwrap();
         fs::create_dir_all(dir.path().join("lab")).unwrap();
         #[cfg(unix)]

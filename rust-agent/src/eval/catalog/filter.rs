@@ -17,23 +17,13 @@ pub fn matches_filter(it: &CatalogItem, f: &CatalogFilter) -> bool {
     if !f.tracks.is_empty() && !f.tracks.iter().any(|t| t == &it.track) {
         return false;
     }
-    if !f.tags_all.is_empty()
-        && !f.tags_all
-            .iter()
-            .all(|t| it.tags.iter().any(|x| x == t))
-    {
+    if !f.tags_all.is_empty() && !f.tags_all.iter().all(|t| it.tags.iter().any(|x| x == t)) {
         return false;
     }
-    if !f.tags_any.is_empty()
-        && !f.tags_any
-            .iter()
-            .any(|t| it.tags.iter().any(|x| x == t))
-    {
+    if !f.tags_any.is_empty() && !f.tags_any.iter().any(|t| it.tags.iter().any(|x| x == t)) {
         return false;
     }
-    if f.exclude_sandbox
-        && (it.grade.requires_sandbox || it.grade.kind == "sandbox_skip")
-    {
+    if f.exclude_sandbox && (it.grade.requires_sandbox || it.grade.kind == "sandbox_skip") {
         return false;
     }
     true

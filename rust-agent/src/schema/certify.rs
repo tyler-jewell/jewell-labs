@@ -1,8 +1,6 @@
 //! Frontmatter parsing and certification.
 
-use super::types::{
-    AgentFrontmatter, CertificationResult, SchemaError, LATEST_SCHEMA_VERSION,
-};
+use super::types::{AgentFrontmatter, CertificationResult, SchemaError, LATEST_SCHEMA_VERSION};
 use std::collections::BTreeMap;
 
 /// Split markdown into (yaml_text, body).

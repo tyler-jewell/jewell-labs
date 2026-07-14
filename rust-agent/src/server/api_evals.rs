@@ -106,7 +106,8 @@ pub async fn run_stream(
 
         let out = match suite.as_str() {
             "team" => {
-                let _ = tx.send(json!({"type":"log","msg":"running tool_plan + team_collaboration"}));
+                let _ =
+                    tx.send(json!({"type":"log","msg":"running tool_plan + team_collaboration"}));
                 let report = run_full_eval(false).await;
                 persist_report(&report, &runs_dir, true)
             }
@@ -253,10 +254,7 @@ pub async fn run_stream(
                     .and_then(|x| x.as_f64())
                     .unwrap_or(0.0);
                 let id = report.get("id").and_then(|x| x.as_str()).unwrap_or("?");
-                let kind = report
-                    .get("kind")
-                    .and_then(|x| x.as_str())
-                    .unwrap_or("");
+                let kind = report.get("kind").and_then(|x| x.as_str()).unwrap_or("");
                 let _ = tx.send(json!({
                     "type": "log",
                     "msg": format!("done id={id} kind={kind} accuracy={:.0}%", acc * 100.0)

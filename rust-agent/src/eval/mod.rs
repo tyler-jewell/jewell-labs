@@ -4,8 +4,8 @@
 //! Multi-vendor catalog: discover `evals/vendors/*/vendor.toml`, pin shared `evals/model.toml`.
 
 mod agent_eval;
-pub mod catalog;
 mod cases;
+pub mod catalog;
 pub mod compare;
 mod ground_truth;
 mod llm_case;
@@ -31,21 +31,19 @@ pub fn probe_eval_depth_exceeded(agent_id: &str) -> bool {
 pub use cases::{
     core_plan_require_tools, full_introspection_plan, orchestrator_ctx, run_tool_plan_case,
 };
+pub use catalog::{
+    filter_items, list_source_summaries, load_catalog_items, run_catalog_sample, sample_items,
+    CatalogFilter, CatalogItem, CatalogRunOpts, CatalogRunReport, SourceSummary,
+};
+pub use compare::{
+    known_harnesses, run_compare, run_dry_all, CompareItem, CompareOpts, CompareReport,
+};
 pub use ground_truth::{CaseResult, EvalReport, EvalSummary, FactResult, GroundTruth};
 pub use llm_case::run_llm_case;
 pub use runner::{run_full_eval, write_report};
 pub use scoring::score_introspection;
-pub use store::{
-    evals_runs_dir, list_eval_runs, load_eval_run, write_eval_report, EvalRunSummary,
-};
+pub use store::{evals_runs_dir, list_eval_runs, load_eval_run, write_eval_report, EvalRunSummary};
 pub use team::run_team_collaboration_case;
-pub use compare::{
-    known_harnesses, run_compare, run_dry_all, CompareOpts, CompareReport, CompareItem,
-};
-pub use catalog::{
-    list_source_summaries, run_catalog_sample, sample_items, filter_items, load_catalog_items,
-    CatalogFilter, CatalogItem, CatalogRunOpts, CatalogRunReport, SourceSummary,
-};
 pub use vendors::{
     default_vendor_ids, load_eval_model, load_vendor_manifests, EvalModel, VendorManifest,
 };
@@ -70,14 +68,17 @@ mod tests {
             "tool plan must fully introspect; facts={:?}",
             case.facts.iter().filter(|f| !f.correct).collect::<Vec<_>>()
         );
-        let unique: std::collections::BTreeSet<_> =
-            case.tools_called.iter().cloned().collect();
+        let unique: std::collections::BTreeSet<_> = case.tools_called.iter().cloned().collect();
         assert!(unique.iter().all(|n| n != "run_eval"));
         let required: std::collections::BTreeSet<_> = core_plan_require_tools()
             .into_iter()
             .map(|s| s.to_string())
             .collect();
-        assert!(required.is_subset(&unique), "missing {:?}", required.difference(&unique));
+        assert!(
+            required.is_subset(&unique),
+            "missing {:?}",
+            required.difference(&unique)
+        );
     }
 
     #[test]

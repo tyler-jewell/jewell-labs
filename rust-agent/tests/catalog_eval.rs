@@ -9,16 +9,15 @@ use std::collections::BTreeSet;
 use std::path::PathBuf;
 
 #[test]
-fn three_enabled_online_sources_with_links_and_remote() {
+fn five_enabled_online_sources_with_links_and_remote() {
     let src = list_source_summaries(false).expect("load sources");
     let ids: BTreeSet<_> = src.iter().map(|s| s.id.as_str()).collect();
     assert!(ids.contains("swe-bench"), "{ids:?}");
     assert!(ids.contains("terminal-bench"), "{ids:?}");
     assert!(ids.contains("bfcl"), "{ids:?}");
-    assert!(
-        !ids.contains("legacy-local"),
-        "legacy-local must not exist"
-    );
+    assert!(ids.contains("mbpp"), "{ids:?}");
+    assert!(ids.contains("humaneval"), "{ids:?}");
+    assert!(!ids.contains("legacy-local"), "legacy-local must not exist");
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../evals/catalog/sources");
     for s in &src {
         assert!(!s.links.is_empty(), "{} missing links", s.id);
@@ -55,7 +54,11 @@ fn vendors_discovered_and_default_stable() {
 #[test]
 fn eval_model_loads_from_repo() {
     let m = load_eval_model(None).expect("model");
-    assert!(m.base_url.contains("8091") || m.base_url.contains("http"), "{:?}", m.base_url);
+    assert!(
+        m.base_url.contains("8091") || m.base_url.contains("http"),
+        "{:?}",
+        m.base_url
+    );
     assert!(!m.model.is_empty());
 }
 
@@ -67,7 +70,6 @@ fn hydrate_online_and_filter_sample() {
         "need enough hydrated items, got {}",
         all.len()
     );
-    // No synthetic legacy source
     assert!(all.iter().all(|i| i.source_id != "legacy-local"));
     // Every item should cite a remote origin in meta or links
     for i in all.iter().take(5) {
@@ -96,12 +98,18 @@ fn hydrate_online_and_filter_sample() {
         !runnable.is_empty(),
         "expected runnable non-sandbox pool from BFCL, got 0"
     );
-    assert!(runnable.iter().all(|i| {
-        !i.grade.requires_sandbox && i.grade.kind != "sandbox_skip"
-    }));
+    assert!(runnable
+        .iter()
+        .all(|i| { !i.grade.requires_sandbox && i.grade.kind != "sandbox_skip" }));
+    let run_sources: BTreeSet<_> = runnable.iter().map(|i| i.source_id.as_str()).collect();
     assert!(
-        runnable.iter().all(|i| i.source_id == "bfcl"),
-        "without sandbox only BFCL should be runnable currently"
+        run_sources.contains("bfcl"),
+        "BFCL should be runnable: {run_sources:?}"
+    );
+    // Host coding datasets should also be runnable without Docker.
+    assert!(
+        run_sources.contains("mbpp") && run_sources.contains("humaneval"),
+        "expected both mbpp and humaneval in runnable pool: {run_sources:?}"
     );
 
     let a = sample_items(&runnable, 20, 42);
@@ -157,7 +165,11 @@ fn jewell_skips_sandbox_coding_honestly() {
     .expect("jewell catalog");
     assert!(!report.items.is_empty());
     for it in &report.items {
-        assert_eq!(it.status, "skip", "{} should skip: {}", it.full_id, it.detail);
+        assert_eq!(
+            it.status, "skip",
+            "{} should skip: {}",
+            it.full_id, it.detail
+        );
         assert_eq!(it.score, 0.0);
     }
     assert!(report.meta.get("eval_model").is_some(), "{:?}", report.meta);

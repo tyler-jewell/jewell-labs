@@ -6,15 +6,9 @@ use rust_agent::parse_sse_data_line as host_reexport;
 #[test]
 fn stream_parser_matches_ui_crate() {
     let line = r#"data: {"delta":"hello"}"#;
-    assert_eq!(
-        parse_sse_data_line(line),
-        SseEvent::Delta("hello".into())
-    );
+    assert_eq!(parse_sse_data_line(line), SseEvent::Delta("hello".into()));
     // rust_agent re-exports the same function the WASM client uses
-    assert_eq!(
-        host_reexport(line),
-        SseEvent::Delta("hello".into())
-    );
+    assert_eq!(host_reexport(line), SseEvent::Delta("hello".into()));
     assert!(matches!(
         parse_sse_data_line(r#"data: {"tool_call":{"name":"list_tools","arguments":{}}}"#),
         SseEvent::ToolCall(_)

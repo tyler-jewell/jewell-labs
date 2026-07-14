@@ -73,7 +73,9 @@ pub fn list_tools_from_fs(tools_dir: impl AsRef<Path>) -> Vec<ToolFileEntry> {
                 .unwrap_or("unknown")
                 .to_string();
             let id = format!("{category}/{name}");
-            let reg = registry.iter().find(|t| t.name == name && t.category == category);
+            let reg = registry
+                .iter()
+                .find(|t| t.name == name && t.category == category);
             // also match by name only if category matches registry
             let reg = reg.or_else(|| registry.iter().find(|t| t.name == name));
             out.push(ToolFileEntry {
@@ -98,7 +100,11 @@ pub fn list_agent_local_tools(agents_dir: impl AsRef<Path>, agent_id: &str) -> V
     if parts.len() != 2 {
         return vec![];
     }
-    let dir = agents_dir.as_ref().join(parts[0]).join(parts[1]).join("tools");
+    let dir = agents_dir
+        .as_ref()
+        .join(parts[0])
+        .join(parts[1])
+        .join("tools");
     if !dir.is_dir() {
         return vec![];
     }

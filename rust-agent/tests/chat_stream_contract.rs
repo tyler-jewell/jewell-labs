@@ -4,8 +4,8 @@
 //! This is the regression for the UI showing:
 //!   ASSISTANT  {"name":"list_tools","arguments":{}}
 
-use rust_agent::{extract_tool_call, invoke_tool, ToolContext, CORE_AGENT_ID};
 use rust_agent::{agents_dir, crate_root, registry_path, repo_root, sessions_dir};
+use rust_agent::{extract_tool_call, invoke_tool, ToolContext, CORE_AGENT_ID};
 
 fn orch_ctx() -> ToolContext {
     let agents = agents_dir();
@@ -54,7 +54,11 @@ fn extracted_list_tools_invokes_successfully() {
             result.result
         );
         assert!(
-            result.result.get("tools").and_then(|t| t.as_array()).map(|a| !a.is_empty())
+            result
+                .result
+                .get("tools")
+                .and_then(|t| t.as_array())
+                .map(|a| !a.is_empty())
                 == Some(true),
             "expected tools array: {:?}",
             result.result

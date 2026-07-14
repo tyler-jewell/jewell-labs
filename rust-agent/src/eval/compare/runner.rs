@@ -50,9 +50,10 @@ pub fn run_compare(opts: &CompareOpts) -> Result<CompareReport, String> {
         ));
     }
 
-    let run_id = opts.run_id.clone().unwrap_or_else(|| {
-        format!("compare-{}", Utc::now().format("%Y%m%dT%H%M%SZ"))
-    });
+    let run_id = opts
+        .run_id
+        .clone()
+        .unwrap_or_else(|| format!("compare-{}", Utc::now().format("%Y%m%dT%H%M%SZ")));
     // Artifact dir under monorepo evals/runs/<id>/  + flat JSON for list API
     let runs_root = opts
         .runs_dir

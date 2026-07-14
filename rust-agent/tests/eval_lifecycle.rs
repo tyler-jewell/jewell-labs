@@ -72,7 +72,11 @@ body
         }),
     );
     assert!(!res.ok, "red eval must fail tool: {:?}", res.result);
-    let err = res.result.get("error").and_then(|e| e.as_str()).unwrap_or("");
+    let err = res
+        .result
+        .get("error")
+        .and_then(|e| e.as_str())
+        .unwrap_or("");
     assert!(
         err.contains("rolled back") || err.contains("publish blocked"),
         "error={err}"

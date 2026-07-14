@@ -3,9 +3,7 @@
 use super::model::EvalModel;
 use super::VendorContext;
 use crate::eval::compare::AdapterResult;
-use crate::eval::{
-    orchestrator_ctx, run_team_collaboration_case, run_tool_plan_case, GroundTruth,
-};
+use crate::eval::{orchestrator_ctx, run_team_collaboration_case, run_tool_plan_case, GroundTruth};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
@@ -72,24 +70,18 @@ impl JewellVendor {
             .cloned()
             .collect();
         if !missing.is_empty() {
-            return AdapterResult::skip(
-                format!("jewell lacks capabilities: {missing:?}"),
-                missing,
-            );
+            return AdapterResult::skip(format!("jewell lacks capabilities: {missing:?}"), missing);
         }
 
-        if ctx
-            .required_capabilities
-            .iter()
-            .any(|c| c == "host_eval")
-        {
+        if ctx.required_capabilities.iter().any(|c| c == "host_eval") {
             return self.run_host_eval(ctx.workspace);
         }
 
         // Ensure catalog workspaces stay under evals/runs (eval pin policy).
-        if let Err(e) =
-            crate::eval_guards::assert_sandbox_override_allowed(ctx.workspace, &crate::paths::repo_root())
-        {
+        if let Err(e) = crate::eval_guards::assert_sandbox_override_allowed(
+            ctx.workspace,
+            &crate::paths::repo_root(),
+        ) {
             return AdapterResult::error(format!("eval workspace not allowed: {e}"));
         }
 
@@ -170,7 +162,10 @@ impl JewellVendor {
                 stdout: String::new(),
                 stderr: err,
                 t_ms: t0.elapsed().as_millis() as u64,
-                detail: format!("HTTP {code} from {} — is rust-agent running?", self.product_base),
+                detail: format!(
+                    "HTTP {code} from {} — is rust-agent running?",
+                    self.product_base
+                ),
                 capabilities_missing: vec![],
                 exit_code: None,
             };
@@ -229,4 +224,3 @@ impl JewellVendor {
         }
     }
 }
-

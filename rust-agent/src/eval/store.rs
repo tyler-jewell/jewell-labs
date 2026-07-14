@@ -130,30 +130,34 @@ fn skim_run(path: &Path) -> Option<EvalRunSummary> {
     let kind = run_kind(path.file_name()?.to_str()?).to_string();
 
     // Multi-harness compare reports use summary.harnesses + accuracy on scored items
-    let (accuracy, total, correct) = if kind == "compare" || v.get("kind").and_then(|x| x.as_str()) == Some("compare")
-    {
-        let accuracy = summary.and_then(|s| s.get("accuracy")).and_then(|x| x.as_f64());
-        let total = summary
-            .and_then(|s| s.get("total"))
-            .and_then(|x| x.as_u64())
-            .map(|n| n as usize);
-        let correct = summary
-            .and_then(|s| s.get("correct"))
-            .and_then(|x| x.as_u64())
-            .map(|n| n as usize);
-        (accuracy, total, correct)
-    } else {
-        let accuracy = summary.and_then(|s| s.get("accuracy")).and_then(|x| x.as_f64());
-        let total = summary
-            .and_then(|s| s.get("total"))
-            .and_then(|x| x.as_u64())
-            .map(|n| n as usize);
-        let correct = summary
-            .and_then(|s| s.get("correct"))
-            .and_then(|x| x.as_u64())
-            .map(|n| n as usize);
-        (accuracy, total, correct)
-    };
+    let (accuracy, total, correct) =
+        if kind == "compare" || v.get("kind").and_then(|x| x.as_str()) == Some("compare") {
+            let accuracy = summary
+                .and_then(|s| s.get("accuracy"))
+                .and_then(|x| x.as_f64());
+            let total = summary
+                .and_then(|s| s.get("total"))
+                .and_then(|x| x.as_u64())
+                .map(|n| n as usize);
+            let correct = summary
+                .and_then(|s| s.get("correct"))
+                .and_then(|x| x.as_u64())
+                .map(|n| n as usize);
+            (accuracy, total, correct)
+        } else {
+            let accuracy = summary
+                .and_then(|s| s.get("accuracy"))
+                .and_then(|x| x.as_f64());
+            let total = summary
+                .and_then(|s| s.get("total"))
+                .and_then(|x| x.as_u64())
+                .map(|n| n as usize);
+            let correct = summary
+                .and_then(|s| s.get("correct"))
+                .and_then(|x| x.as_u64())
+                .map(|n| n as usize);
+            (accuracy, total, correct)
+        };
 
     let label = if kind == "compare" {
         let n = summary

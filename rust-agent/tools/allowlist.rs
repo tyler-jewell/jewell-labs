@@ -20,10 +20,7 @@ pub fn resolve_allowlist(patterns: &[String]) -> Vec<String> {
 
 pub fn tool_matches_allowlist(patterns: &[String], name: &str, category: &str) -> bool {
     patterns.iter().any(|p| {
-        p == "*"
-            || p == name
-            || p == &format!("{category}/*")
-            || p == &format!("{category}/{name}")
+        p == "*" || p == name || p == &format!("{category}/*") || p == &format!("{category}/{name}")
     })
 }
 
@@ -55,10 +52,7 @@ pub fn validate_tool_allowlist(patterns: &[String]) -> Vec<String> {
             let mut parts = p.splitn(2, '/');
             let cat = parts.next().unwrap_or("");
             let name = parts.next().unwrap_or("");
-            if !specs
-                .iter()
-                .any(|t| t.category == cat && t.name == name)
-            {
+            if !specs.iter().any(|t| t.category == cat && t.name == name) {
                 errors.push(format!("unknown tool in tools: {p}"));
             }
             continue;

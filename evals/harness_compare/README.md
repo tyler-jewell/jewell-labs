@@ -7,7 +7,7 @@
 > cargo run -q --bin eval_catalog -- --harnesses dry,jewell,hermes --sample-n 20 --seed 42
 > ```
 >
-> Synthetic local `tasks/` packs were **removed**. Use online catalog sources only (`evals/catalog/`).
+> Multi-source evals: `evals/catalog/` (online datasets via `remote.toml`).
 
 Lean evaluation framework for head-to-head runs of:
 

@@ -62,8 +62,8 @@ pub fn load_vendor_manifests(root: Option<&Path>) -> Result<Vec<VendorManifest>,
         }
         let text = fs::read_to_string(&toml_path)
             .map_err(|e| format!("read {}: {e}", toml_path.display()))?;
-        let mut m: VendorManifest = toml::from_str(&text)
-            .map_err(|e| format!("parse {}: {e}", toml_path.display()))?;
+        let mut m: VendorManifest =
+            toml::from_str(&text).map_err(|e| format!("parse {}: {e}", toml_path.display()))?;
         if m.id.is_empty() {
             m.id = p
                 .file_name()
@@ -210,7 +210,8 @@ mod tests {
             "keep required prefixes like ERR-",
         ];
         for p in paths {
-            let text = fs::read_to_string(&p).unwrap_or_else(|e| panic!("read {}: {e}", p.display()));
+            let text =
+                fs::read_to_string(&p).unwrap_or_else(|e| panic!("read {}: {e}", p.display()));
             for b in banned {
                 assert!(
                     !text.contains(b),

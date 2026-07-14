@@ -88,10 +88,7 @@ impl WriteJail {
             return Err(JailError::Traversal(rel.into()));
         }
         let under_root = if self.allowed_roots.is_empty()
-            || self
-                .allowed_roots
-                .iter()
-                .all(|r| r.as_os_str().is_empty())
+            || self.allowed_roots.iter().all(|r| r.as_os_str().is_empty())
         {
             true // whole workspace (still no ..)
         } else {
@@ -153,10 +150,7 @@ impl WriteJail {
                 }
             }
             // Replace regular file in place
-            let mut f = OpenOptions::new()
-                .write(true)
-                .truncate(true)
-                .open(&path)?;
+            let mut f = OpenOptions::new().write(true).truncate(true).open(&path)?;
             f.write_all(bytes)?;
             f.sync_all()?;
         } else {

@@ -15,7 +15,9 @@ pub fn wire_tool_chips(document: &Document) -> Result<(), JsValue> {
     let def = document
         .get_element_by_id("tool-def")
         .ok_or_else(|| JsValue::from_str("no tool-def"))?;
-    let raw = root.get_attribute("data-tools").unwrap_or_else(|| "[]".into());
+    let raw = root
+        .get_attribute("data-tools")
+        .unwrap_or_else(|| "[]".into());
     let tools: Value = serde_json::from_str(&raw).unwrap_or(Value::Array(vec![]));
     let arr = tools.as_array().cloned().unwrap_or_default();
     chips.set_inner_html("");

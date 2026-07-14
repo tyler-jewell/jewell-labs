@@ -21,10 +21,7 @@ pub fn wire_presence(document: &Document) -> Result<(), JsValue> {
     }) as Box<dyn FnMut()>);
     let _ = web_sys::window()
         .unwrap()
-        .set_interval_with_callback_and_timeout_and_arguments_0(
-            cb.as_ref().unchecked_ref(),
-            2500,
-        );
+        .set_interval_with_callback_and_timeout_and_arguments_0(cb.as_ref().unchecked_ref(), 2500);
     cb.forget();
     Ok(())
 }
@@ -45,10 +42,7 @@ async fn refresh_presence(document: &Document) -> Result<(), JsValue> {
         .unwrap_or_default();
     for a in agents {
         let id = a.get("agent_id").and_then(|x| x.as_str()).unwrap_or("");
-        let status = a
-            .get("status")
-            .and_then(|x| x.as_str())
-            .unwrap_or("idle");
+        let status = a.get("status").and_then(|x| x.as_str()).unwrap_or("idle");
         if id.is_empty() {
             continue;
         }

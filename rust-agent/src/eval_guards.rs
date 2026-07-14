@@ -63,10 +63,7 @@ fn parse_http_url_host(u: &str) -> Result<String, String> {
         return Err("eval_base_url missing host".into());
     }
     // Authority ends at path / query / fragment
-    let authority = rest
-        .split(['/', '?', '#'])
-        .next()
-        .unwrap_or(rest);
+    let authority = rest.split(['/', '?', '#']).next().unwrap_or(rest);
     if authority.is_empty() {
         return Err("eval_base_url missing host".into());
     }
@@ -200,10 +197,7 @@ fn clean_path(p: &Path) -> Result<PathBuf, String> {
 }
 
 /// Validate override used by fs tools (defense in depth).
-pub fn assert_sandbox_override_allowed(
-    ovr: &Path,
-    repo_root: &Path,
-) -> Result<(), String> {
+pub fn assert_sandbox_override_allowed(ovr: &Path, repo_root: &Path) -> Result<(), String> {
     let s = ovr.to_string_lossy();
     sanitize_eval_fs_root(Some(s.as_ref()), repo_root)?;
     Ok(())
@@ -216,9 +210,15 @@ mod tests {
 
     #[test]
     fn loopback_base_ok_remote_rejected() {
-        assert!(sanitize_eval_base_url(Some("http://127.0.0.1:8091")).unwrap().is_some());
-        assert!(sanitize_eval_base_url(Some("http://localhost:8091/v1")).unwrap().is_some());
-        assert!(sanitize_eval_base_url(Some("http://[::1]:8091/v1")).unwrap().is_some());
+        assert!(sanitize_eval_base_url(Some("http://127.0.0.1:8091"))
+            .unwrap()
+            .is_some());
+        assert!(sanitize_eval_base_url(Some("http://localhost:8091/v1"))
+            .unwrap()
+            .is_some());
+        assert!(sanitize_eval_base_url(Some("http://[::1]:8091/v1"))
+            .unwrap()
+            .is_some());
         assert!(sanitize_eval_base_url(Some("http://evil.com")).is_err());
         assert!(sanitize_eval_base_url(Some("http://user@127.0.0.1")).is_err());
         // DNS lookalikes must not pass (prefix starts_with was wrong)
@@ -230,16 +230,20 @@ mod tests {
             sanitize_eval_base_url(Some("http://localhost.attacker.com")).is_err(),
             "localhost.attacker.com must be rejected"
         );
-        assert!(
-            sanitize_eval_base_url(Some("http://127.0.0.1.nip.io:8091")).is_err()
-        );
+        assert!(sanitize_eval_base_url(Some("http://127.0.0.1.nip.io:8091")).is_err());
         assert!(sanitize_eval_base_url(Some("https://127.0.0.1.example")).is_err());
     }
 
     #[test]
     fn parse_host_exact() {
-        assert_eq!(parse_http_url_host("http://127.0.0.1:8091/v1").unwrap(), "127.0.0.1");
-        assert_eq!(parse_http_url_host("http://localhost/v1").unwrap(), "localhost");
+        assert_eq!(
+            parse_http_url_host("http://127.0.0.1:8091/v1").unwrap(),
+            "127.0.0.1"
+        );
+        assert_eq!(
+            parse_http_url_host("http://localhost/v1").unwrap(),
+            "localhost"
+        );
         assert_eq!(parse_http_url_host("http://[::1]:8080").unwrap(), "::1");
         assert_eq!(
             parse_http_url_host("http://127.0.0.1.evil.com").unwrap(),

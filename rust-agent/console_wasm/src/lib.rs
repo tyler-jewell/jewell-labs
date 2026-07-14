@@ -19,7 +19,9 @@ pub fn start() {
 
 fn boot() -> Result<(), JsValue> {
     let window = web_sys::window().ok_or_else(|| JsValue::from_str("no window"))?;
-    let document = window.document().ok_or_else(|| JsValue::from_str("no document"))?;
+    let document = window
+        .document()
+        .ok_or_else(|| JsValue::from_str("no document"))?;
     chips::wire_tool_chips(&document)?;
     chat::wire_chat(&document)?;
     sessions::wire_sessions(&document)?;

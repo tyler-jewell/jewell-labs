@@ -86,7 +86,8 @@ fn parse_toml_val(val: &str) -> TomlVal {
         }
         return TomlVal::List(items);
     }
-    if (val.starts_with('"') && val.ends_with('"')) || (val.starts_with('\'') && val.ends_with('\''))
+    if (val.starts_with('"') && val.ends_with('"'))
+        || (val.starts_with('\'') && val.ends_with('\''))
     {
         return TomlVal::Str(val[1..val.len() - 1].to_string());
     }
@@ -137,7 +138,12 @@ pub fn load_task(task_dir: &Path) -> std::io::Result<Task> {
     let id = meta
         .get("id")
         .and_then(|v| v.as_str())
-        .unwrap_or_else(|| task_dir.file_name().and_then(|n| n.to_str()).unwrap_or("task"))
+        .unwrap_or_else(|| {
+            task_dir
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("task")
+        })
         .to_string();
     let track = meta
         .get("track")
@@ -202,7 +208,11 @@ pub fn discover_tasks(tasks_root: &Path, filter_spec: &str) -> std::io::Result<V
     if spec.is_empty() || spec == "all" {
         return Ok(tasks);
     }
-    let parts: Vec<&str> = spec.split(',').map(|s| s.trim()).filter(|s| !s.is_empty()).collect();
+    let parts: Vec<&str> = spec
+        .split(',')
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .collect();
     let all_tracks: std::collections::BTreeSet<_> =
         tasks.iter().map(|t| t.track.as_str()).collect();
     let tracks: std::collections::BTreeSet<_> = parts
@@ -224,7 +234,11 @@ pub fn discover_tasks(tasks_root: &Path, filter_spec: &str) -> std::io::Result<V
     if out.is_empty() {
         out = tasks
             .into_iter()
-            .filter(|t| parts.iter().any(|p| t.id.contains(p) || t.id.starts_with(p)))
+            .filter(|t| {
+                parts
+                    .iter()
+                    .any(|p| t.id.contains(p) || t.id.starts_with(p))
+            })
             .collect();
     }
     Ok(out)
@@ -270,14 +284,15 @@ n_runs_default = 1
         assert_eq!(m.get("id").and_then(|v| v.as_str()), Some("coding_fix_bug"));
         assert_eq!(m.get("timeout_s").and_then(|v| v.as_i64()), Some(240));
         assert_eq!(
-            m.get("capabilities").and_then(|v| v.as_list()).map(|l| l.len()),
+            m.get("capabilities")
+                .and_then(|v| v.as_list())
+                .map(|l| l.len()),
             Some(3)
         );
     }
 
     #[test]
-    fn discover_local_tasks_empty_after_online_only() {
-        // Hard-coded Harbor smokes removed; public evals use online catalog remotes.
+    fn discover_local_tasks_empty() {
         let root = repo_root();
         let dir = compare_tasks_dir(&root);
         if !dir.is_dir() {
@@ -286,7 +301,8 @@ n_runs_default = 1
         let all = discover_tasks(&dir, "all").expect("discover");
         assert!(
             all.is_empty(),
-            "local compare tasks must be empty (use eval_catalog online sources); got {}",
+            "expected no local compare tasks under {}; got {}",
+            dir.display(),
             all.len()
         );
     }

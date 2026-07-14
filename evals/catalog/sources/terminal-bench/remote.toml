@@ -16,3 +16,7 @@ tasks = [
   "nginx-request-logging",
   "sanitize-git-repo",
 ]
+# Subset that can be graded on the host workspace (no Docker) using online tests.
+host_runnable = [
+  "hello-world",
+]

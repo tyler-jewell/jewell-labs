@@ -65,35 +65,35 @@ pub async fn chat_stream(
     };
 
     // Eval pins: require JEWELL_ALLOW_EVAL_PINS=1 + loopback URL + evals/runs fs root.
-    let has_pin = req.eval_base_url.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
-        || req.eval_model.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
-        || req.eval_fs_root.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
+    let has_pin = req
+        .eval_base_url
+        .as_ref()
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false)
+        || req
+            .eval_model
+            .as_ref()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false)
+        || req
+            .eval_fs_root
+            .as_ref()
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false)
         || req.eval_temperature.is_some();
     if let Err(e) = crate::eval_guards::require_eval_pins_enabled(has_pin) {
-        return (
-            StatusCode::FORBIDDEN,
-            Json(json!({ "error": e })),
-        )
-            .into_response();
+        return (StatusCode::FORBIDDEN, Json(json!({ "error": e }))).into_response();
     }
     let eval_base = match crate::eval_guards::sanitize_eval_base_url(req.eval_base_url.as_deref()) {
         Ok(v) => v,
         Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": e })),
-            )
-                .into_response();
+            return (StatusCode::BAD_REQUEST, Json(json!({ "error": e }))).into_response();
         }
     };
     let eval_model = match crate::eval_guards::sanitize_eval_model(req.eval_model.as_deref()) {
         Ok(v) => v,
         Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": e })),
-            )
-                .into_response();
+            return (StatusCode::BAD_REQUEST, Json(json!({ "error": e }))).into_response();
         }
     };
     let sandbox = match crate::eval_guards::sanitize_eval_fs_root(
@@ -102,21 +102,13 @@ pub async fn chat_stream(
     ) {
         Ok(v) => v,
         Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": e })),
-            )
-                .into_response();
+            return (StatusCode::BAD_REQUEST, Json(json!({ "error": e }))).into_response();
         }
     };
     let eval_temp = match crate::eval_guards::sanitize_eval_temperature(req.eval_temperature) {
         Ok(v) => v,
         Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({ "error": e })),
-            )
-                .into_response();
+            return (StatusCode::BAD_REQUEST, Json(json!({ "error": e }))).into_response();
         }
     };
 

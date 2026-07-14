@@ -70,11 +70,7 @@ pub struct CliVendor {
 }
 
 impl CliVendor {
-    pub fn from_manifest(
-        id: &str,
-        capabilities: Vec<String>,
-        spec: CliSpec,
-    ) -> Self {
+    pub fn from_manifest(id: &str, capabilities: Vec<String>, spec: CliSpec) -> Self {
         Self {
             id: id.into(),
             capabilities,
@@ -134,11 +130,8 @@ impl CliVendor {
             &ctx.model.model,
         );
 
-        let arg_template = select_args_template(
-            &self.spec.args,
-            &self.spec.args_by_track,
-            ctx.track,
-        );
+        let arg_template =
+            select_args_template(&self.spec.args, &self.spec.args_by_track, ctx.track);
         let mut args: Vec<String> = arg_template
             .iter()
             .map(|a| expand(a, &prompt, &ctx.model.model))
@@ -211,9 +204,7 @@ impl CliVendor {
                     t_ms,
                     detail: format!(
                         "{} completed (model={} @ {})",
-                        self.id,
-                        self.resolved_model,
-                        self.resolved_endpoint
+                        self.id, self.resolved_model, self.resolved_endpoint
                     ),
                     capabilities_missing: vec![],
                     exit_code: Some(0),
@@ -222,9 +213,13 @@ impl CliVendor {
             Ok(Err(e)) => AdapterResult::error(format!("{} wait: {e}", self.id)),
             Err(_timeout) => {
                 // Kill hung CLI tree (Hermes spawns nested python).
-                let _ = Command::new("kill").args(["-TERM", &pid.to_string()]).status();
+                let _ = Command::new("kill")
+                    .args(["-TERM", &pid.to_string()])
+                    .status();
                 thread::sleep(Duration::from_millis(400));
-                let _ = Command::new("kill").args(["-KILL", &pid.to_string()]).status();
+                let _ = Command::new("kill")
+                    .args(["-KILL", &pid.to_string()])
+                    .status();
                 let _ = Command::new("pkill")
                     .args(["-P", &pid.to_string()])
                     .status();
@@ -296,10 +291,7 @@ mod tests {
         assert!(fmt.iter().any(|a| a == "none"), "{fmt:?}");
         assert!(fmt.iter().any(|a| a == "--ignore-rules"), "{fmt:?}");
         let term = select_args_template(&default, &by, "terminal");
-        assert!(
-            term.iter().any(|a| a.contains("terminal")),
-            "{term:?}"
-        );
+        assert!(term.iter().any(|a| a.contains("terminal")), "{term:?}");
     }
 
     #[test]

@@ -1,8 +1,8 @@
 //! Full eval orchestration and report persistence.
 
 use super::cases::{core_plan_require_tools, orchestrator_ctx, run_tool_plan_case};
-use super::llm_case::run_llm_case;
 use super::ground_truth::{CaseResult, EvalReport, EvalSummary, GroundTruth};
+use super::llm_case::run_llm_case;
 use super::scoring::fact;
 use super::team::run_team_collaboration_case;
 use crate::chat::ChatEndpoint;
@@ -16,10 +16,7 @@ pub async fn run_full_eval(include_llm: bool) -> EvalReport {
     let (ctx, doc) = orchestrator_ctx();
     let gt = GroundTruth::collect(&ctx);
 
-    let mut cases = vec![
-        run_tool_plan_case(&ctx, &gt),
-        run_team_collaboration_case(),
-    ];
+    let mut cases = vec![run_tool_plan_case(&ctx, &gt), run_team_collaboration_case()];
     let mut tracks = vec!["tool_plan".to_string()];
     let mut model = None;
     let mut server = None;

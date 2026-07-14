@@ -99,10 +99,7 @@ impl ChatEndpoint {
         if let Some(u) = eval_base_url {
             let u = u.trim().trim_end_matches('/');
             if !u.is_empty() {
-                self.base_url = u
-                    .strip_suffix("/v1")
-                    .unwrap_or(u)
-                    .to_string();
+                self.base_url = u.strip_suffix("/v1").unwrap_or(u).to_string();
             }
         }
         if let Some(m) = eval_model {

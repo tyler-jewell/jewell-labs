@@ -84,7 +84,11 @@ pub fn score_introspection(
             .and_then(|a| a.as_array())
             .into_iter()
             .flatten()
-            .filter_map(|t| t.get("name").and_then(|x| x.as_str()).map(|s| s.to_string()))
+            .filter_map(|t| {
+                t.get("name")
+                    .and_then(|x| x.as_str())
+                    .map(|s| s.to_string())
+            })
             .collect();
         // gt.tool_names = allowlist view for this agent
         let missing: Vec<_> = gt.tool_names.difference(&got).cloned().collect();

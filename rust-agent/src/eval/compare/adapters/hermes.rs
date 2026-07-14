@@ -23,14 +23,17 @@ impl HermesAdapter {
 
 fn resolve_hermes() -> (PathBuf, Option<PathBuf>) {
     if let Ok(b) = std::env::var("HERMES_BIN") {
-        let home = std::env::var("HERMES_HOME").ok().map(PathBuf::from).or_else(|| {
-            let v = repo_root()
-                .join("evals")
-                .join("harness_compare")
-                .join("vendor")
-                .join("hermes-home");
-            v.is_dir().then_some(v)
-        });
+        let home = std::env::var("HERMES_HOME")
+            .ok()
+            .map(PathBuf::from)
+            .or_else(|| {
+                let v = repo_root()
+                    .join("evals")
+                    .join("harness_compare")
+                    .join("vendor")
+                    .join("hermes-home");
+                v.is_dir().then_some(v)
+            });
         return (PathBuf::from(b), home);
     }
     let vendor_bin = repo_root()
@@ -45,12 +48,12 @@ fn resolve_hermes() -> (PathBuf, Option<PathBuf>) {
         .join("vendor")
         .join("hermes-home");
     if vendor_bin.exists() {
-        return (
-            vendor_bin,
-            vendor_home.is_dir().then_some(vendor_home),
-        );
+        return (vendor_bin, vendor_home.is_dir().then_some(vendor_home));
     }
-    (PathBuf::from("hermes"), vendor_home.is_dir().then_some(vendor_home))
+    (
+        PathBuf::from("hermes"),
+        vendor_home.is_dir().then_some(vendor_home),
+    )
 }
 
 fn hermes_on_path(bin: &Path) -> bool {

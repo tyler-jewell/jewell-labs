@@ -88,9 +88,7 @@ mod tests {
 
     #[test]
     fn tool_events_and_error() {
-        let tc = parse_sse_data_line(
-            r#"data: {"tool_call":{"name":"list_tools","arguments":{}}}"#,
-        );
+        let tc = parse_sse_data_line(r#"data: {"tool_call":{"name":"list_tools","arguments":{}}}"#);
         match tc {
             SseEvent::ToolCall(v) => assert_eq!(v["name"], "list_tools"),
             _ => panic!("{tc:?}"),
@@ -107,7 +105,8 @@ mod tests {
 
     #[test]
     fn feed_buffer_splits_lines() {
-        let (ev, rest) = feed_sse_buffer("data: {\"delta\":\"a\"}\ndata: {\"delta\":\"b\"}\npartial");
+        let (ev, rest) =
+            feed_sse_buffer("data: {\"delta\":\"a\"}\ndata: {\"delta\":\"b\"}\npartial");
         assert_eq!(ev.len(), 2);
         assert_eq!(rest, "partial");
     }

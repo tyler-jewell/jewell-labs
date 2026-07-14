@@ -10,7 +10,10 @@ pub const PROJECT_MICRO_CASES: &[(&str, &str)] = &[
     ("Reply with only the single digit for 2+2.", "4"),
     ("Reply with only the single digit for 7-3.", "4"),
     ("What is 15-8? Reply with only the number.", "7"),
-    ("Spell the number after nine as one lowercase word only.", "ten"),
+    (
+        "Spell the number after nine as one lowercase word only.",
+        "ten",
+    ),
     ("Is 11 prime? Reply yes or no only.", "yes"),
 ];
 
@@ -63,7 +66,13 @@ pub fn score_project_eval(base_url: &str, model: &str) -> ProjectEvalScore {
     };
     // server up?
     let models_url = format!("{}/v1/models", base_url.trim_end_matches('/'));
-    if client.get(&models_url).send().map(|r| r.status().is_success()).unwrap_or(false) == false {
+    if client
+        .get(&models_url)
+        .send()
+        .map(|r| r.status().is_success())
+        .unwrap_or(false)
+        == false
+    {
         return ProjectEvalScore::unavailable(model, format!("server down: {base_url}"));
     }
 
@@ -132,7 +141,8 @@ pub fn score_inference_target(target: &str) -> ProjectEvalScore {
     let llama = "http://127.0.0.1:8080";
     if let Some(loaded) = loaded_llama_model(llama) {
         let path_s = path.display().to_string();
-        if loaded == path_s || loaded.ends_with(path.file_name().and_then(|s| s.to_str()).unwrap_or(""))
+        if loaded == path_s
+            || loaded.ends_with(path.file_name().and_then(|s| s.to_str()).unwrap_or(""))
         {
             return score_project_eval(llama, &loaded);
         }

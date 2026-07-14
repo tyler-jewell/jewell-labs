@@ -85,22 +85,26 @@ pub fn render_markdown(src: &str) -> String {
             out.push(format!("</{t}>"));
         }
     };
-    let flush_code =
-        |in_code: &mut bool, code_lang: &mut String, code_buf: &mut Vec<&str>, out: &mut Vec<String>| {
-            if !*in_code {
-                return;
-            }
-            let body = escape_html(&code_buf.join("\n"));
-            let cls = if code_lang.is_empty() {
-                String::new()
-            } else {
-                format!(" class=\"lang-{}\"", escape_html(code_lang))
-            };
-            out.push(format!("<pre class=\"md-code\"><code{cls}>{body}</code></pre>"));
-            *in_code = false;
-            code_lang.clear();
-            code_buf.clear();
+    let flush_code = |in_code: &mut bool,
+                      code_lang: &mut String,
+                      code_buf: &mut Vec<&str>,
+                      out: &mut Vec<String>| {
+        if !*in_code {
+            return;
+        }
+        let body = escape_html(&code_buf.join("\n"));
+        let cls = if code_lang.is_empty() {
+            String::new()
+        } else {
+            format!(" class=\"lang-{}\"", escape_html(code_lang))
         };
+        out.push(format!(
+            "<pre class=\"md-code\"><code{cls}>{body}</code></pre>"
+        ));
+        *in_code = false;
+        code_lang.clear();
+        code_buf.clear();
+    };
 
     while i < lines.len() {
         let line = lines[i];
@@ -149,7 +153,10 @@ pub fn render_markdown(src: &str) -> String {
             i += 1;
             continue;
         }
-        let ul = line.trim_start().strip_prefix("- ").or_else(|| line.trim_start().strip_prefix("* "));
+        let ul = line
+            .trim_start()
+            .strip_prefix("- ")
+            .or_else(|| line.trim_start().strip_prefix("* "));
         if let Some(item) = ul {
             flush_para(&mut para, &mut out);
             if list_type != Some("ul") {

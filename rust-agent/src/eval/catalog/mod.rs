@@ -19,6 +19,4 @@ pub use load::{
 };
 pub use run::{run_catalog_sample, CatalogRunOpts, CatalogRunReport};
 pub use sample::sample_items;
-pub use types::{
-    CatalogFilter, CatalogItem, GradeSpec, SourceMeta, SourceSummary,
-};
+pub use types::{CatalogFilter, CatalogItem, GradeSpec, SourceMeta, SourceSummary};

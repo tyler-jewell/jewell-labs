@@ -10,11 +10,7 @@ fn parse_requires_nonempty_require_tools() {
 #[test]
 fn core_and_learner_tool_plan_green() {
     let r = run_agent_eval(CORE_AGENT_ID, "tool_plan").expect("core eval");
-    assert!(
-        r.summary.tool_plan_accuracy >= 1.0,
-        "core {:?}",
-        r.summary
-    );
+    assert!(r.summary.tool_plan_accuracy >= 1.0, "core {:?}", r.summary);
     let r = run_agent_eval(LEARNER_ID, "tool_plan").expect("learner");
     assert!(
         r.summary.tool_plan_accuracy >= 1.0,

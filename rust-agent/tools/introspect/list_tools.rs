@@ -21,10 +21,7 @@ pub fn spec() -> ToolSpec {
 }
 
 pub fn run(ctx: &ToolContext, args: &Value) -> Result<Value, ToolError> {
-    let all = args
-        .get("all")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
+    let all = args.get("all").and_then(|v| v.as_bool()).unwrap_or(false);
     let tools = if all && ctx.allowed_tools.iter().any(|p| p == "*") {
         crate::tools::builtin_tools()
     } else {

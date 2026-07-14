@@ -59,7 +59,11 @@ pub fn score_agent_markdown(markdown: &str, require: &[String]) -> f64 {
     if require.is_empty() {
         return 1.0;
     }
-    require.iter().filter(|s| markdown.contains(s.as_str())).count() as f64 / require.len() as f64
+    require
+        .iter()
+        .filter(|s| markdown.contains(s.as_str()))
+        .count() as f64
+        / require.len() as f64
 }
 
 pub fn diff_line_count(a: &str, b: &str) -> usize {
@@ -82,14 +86,21 @@ pub fn learn_improve(
     }
     let mut results = Vec::new();
     for (i, target) in req.targets.iter().enumerate() {
-        let mut g = claims().lock().map_err(|e| AgentsError::PublishBlocked(e.to_string()))?;
+        let mut g = claims()
+            .lock()
+            .map_err(|e| AgentsError::PublishBlocked(e.to_string()))?;
         if !g.insert(target.clone()) {
             results.push(reject(target, "claim held"));
             continue;
         }
         drop(g);
 
-        let r = improve_one(dir, target, req.patches.get(i).map(|s| s.as_str()).unwrap_or(""), req);
+        let r = improve_one(
+            dir,
+            target,
+            req.patches.get(i).map(|s| s.as_str()).unwrap_or(""),
+            req,
+        );
         if let Ok(mut g) = claims().lock() {
             g.remove(target);
         }
@@ -185,7 +196,10 @@ fn improve_one(
     })
 }
 
-pub fn write_learn_report(report: &LearnReport, path: impl Into<PathBuf>) -> std::io::Result<PathBuf> {
+pub fn write_learn_report(
+    report: &LearnReport,
+    path: impl Into<PathBuf>,
+) -> std::io::Result<PathBuf> {
     let path = path.into();
     if let Some(p) = path.parent() {
         std::fs::create_dir_all(p)?;

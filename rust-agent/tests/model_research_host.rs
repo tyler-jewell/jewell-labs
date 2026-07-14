@@ -11,7 +11,9 @@ use tempfile::tempdir;
 
 #[test]
 fn sources_documented() {
-    assert!(BENCHMARK_SOURCES.iter().any(|s| s.2.contains("huggingface")));
+    assert!(BENCHMARK_SOURCES
+        .iter()
+        .any(|s| s.2.contains("huggingface")));
 }
 
 #[test]
@@ -41,7 +43,10 @@ fn reject_when_candidate_inference_unavailable() {
     assert_eq!(rep.decision, "reject", "{:?}", rep.reason);
     assert!(
         rep.reason.contains("inference_unavailable")
-            || rep.metrics.iter().any(|m| m.name == "inference_available_both" && !m.not_worse),
+            || rep
+                .metrics
+                .iter()
+                .any(|m| m.name == "inference_available_both" && !m.not_worse),
         "reason={}",
         rep.reason
     );
@@ -147,8 +152,7 @@ fn research_eligible_or_reject_uses_project_micro_not_file_magic() {
 #[test]
 fn write_scratch_report_with_real_scores() {
     let scratch = std::env::var("SCRATCH").unwrap_or_else(|_| {
-        "/var/folders/rb/s2g5lg7s1hd_rxc2kdq61myr0000gn/T/grok-goal-ec2edd42b0cb/implementer"
-            .into()
+        "/var/folders/rb/s2g5lg7s1hd_rxc2kdq61myr0000gn/T/grok-goal-ec2edd42b0cb/implementer".into()
     });
     let d = tempdir().unwrap();
     let reg = d.path().join("registry.yaml");
@@ -173,7 +177,12 @@ fn write_scratch_report_with_real_scores() {
     assert!(text.contains("project_micro_eval"));
     assert!(text.contains("baseline_eval"));
     assert!(text.contains("candidate_eval"));
-    println!("wrote {} decision={} reason={}", path.display(), rep.decision, rep.reason);
+    println!(
+        "wrote {} decision={} reason={}",
+        path.display(),
+        rep.decision,
+        rep.reason
+    );
 }
 
 #[test]

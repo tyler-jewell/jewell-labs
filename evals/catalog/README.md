@@ -19,10 +19,14 @@ Product structural gates (`tool_plan` / team collaboration) stay in `rust-agent/
 | id | Online origin | Links |
 | --- | --- | --- |
 | `bfcl` | Gorilla BFCL v4 JSONL (GitHub raw) | [leaderboard](https://gorilla.cs.berkeley.edu/leaderboard.html) |
-| `terminal-bench` | Official `original-tasks/*/task.yaml` | [tbench.ai](https://www.tbench.ai/) |
+| `terminal-bench` | Official `original-tasks/*/task.yaml` (+ host-runnable subset) | [tbench.ai](https://www.tbench.ai/) |
 | `swe-bench` | SWE-bench Lite instance ids → GitHub PR text | [swebench.com](https://www.swebench.com/) |
+| `mbpp` | Google Research MBPP JSONL → host `solution.py` + local `python3` asserts | [MBPP](https://github.com/google-research/google-research/tree/master/mbpp) |
+| `humaneval` | OpenAI HumanEval JSONL.gz → host `solution.py` + local `python3` `check()` | [human-eval](https://github.com/openai/human-eval) |
 
-There is **no** `legacy-local` source and no synthetic in-repo task pack.
+There is **no** `legacy-local` source and no synthetic in-repo task pack. Coding items are online datasets graded by writing files in the workspace (Jewell `fs_*`, Hermes file/terminal tools).
+
+Gzip decode uses `flate2`. Coding items use `solution_file` grades: reject seed/stub, then run dataset unit tests with local `python3` (no Docker). Without `python3` or test payloads, only structural smoke is reported (`correct=false`, score ≤ 0.5) — never full credit.
 
 ## Run
 

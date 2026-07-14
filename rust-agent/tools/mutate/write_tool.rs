@@ -34,8 +34,8 @@ pub fn run(ctx: &ToolContext, args: &Value) -> Result<Value, ToolError> {
 
     match scope.as_str() {
         "shared" => {
-            let category =
-                arg_str(args, "category").ok_or_else(|| ToolError::Args("category required".into()))?;
+            let category = arg_str(args, "category")
+                .ok_or_else(|| ToolError::Args("category required".into()))?;
             validate_segment(&category).map_err(|e| ToolError::Args(e.to_string()))?;
             // Draft only — .rs.draft so it is not mistaken for live registerable source
             let jail = WriteJail::workspace_roots(&ctx.crate_root, &["tools"]);
@@ -51,8 +51,8 @@ pub fn run(ctx: &ToolContext, args: &Value) -> Result<Value, ToolError> {
             }))
         }
         "agent_local" => {
-            let agent_id =
-                arg_str(args, "agent_id").ok_or_else(|| ToolError::Args("agent_id required".into()))?;
+            let agent_id = arg_str(args, "agent_id")
+                .ok_or_else(|| ToolError::Args("agent_id required".into()))?;
             parse_agent_ref(&agent_id).map_err(|e| ToolError::Args(e.to_string()))?;
             let (cat, stem) = parse_agent_ref(&agent_id).unwrap();
             // under agents_dir: {cat}/{stem}/tools/{name}.md

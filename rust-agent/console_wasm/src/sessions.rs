@@ -43,7 +43,10 @@ pub fn wire_sessions(document: &Document) -> Result<(), JsValue> {
 
 async fn load_sessions(list: &Element, agent: &str) -> Result<(), JsValue> {
     list.set_inner_html("<li class=\"muted\">Loading…</li>");
-    let url = format!("/api/sessions?agent={}", js_sys::encode_uri_component(agent));
+    let url = format!(
+        "/api/sessions?agent={}",
+        js_sys::encode_uri_component(agent)
+    );
     let resp = JsFuture::from(web_sys::window().unwrap().fetch_with_str(&url)).await?;
     let resp: Response = resp.dyn_into()?;
     if !resp.ok() {

@@ -81,17 +81,18 @@ async fn main() -> ExitCode {
         );
         if !c.correct {
             for f in c.facts.iter().filter(|f| !f.correct) {
-                println!(
-                    "      - {}: expected={} got={}",
-                    f.id, f.expected, f.got
-                );
+                println!("      - {}: expected={} got={}", f.id, f.expected, f.got);
             }
         }
     }
 
     if report.summary.complete_introspection
         && report.summary.tool_plan_accuracy >= 1.0
-        && report.cases.iter().filter(|c| c.track == "tool_plan").all(|c| c.correct)
+        && report
+            .cases
+            .iter()
+            .filter(|c| c.track == "tool_plan")
+            .all(|c| c.correct)
     {
         // Core gate: tool-plan complete introspection must pass.
         // LLM track is informative unless EVAL_REQUIRE_LLM=1

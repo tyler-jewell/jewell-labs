@@ -100,15 +100,12 @@ pub fn preflight_eval_model(model: &EvalModel) -> Result<(), String> {
         .timeout(std::time::Duration::from_secs(5))
         .build()
         .map_err(|e| format!("http client: {e}"))?;
-    let resp = client
-        .get(&url)
-        .send()
-        .map_err(|e| {
-            format!(
-                "eval model preflight failed at {url}: {e}\n\
+    let resp = client.get(&url).send().map_err(|e| {
+        format!(
+            "eval model preflight failed at {url}: {e}\n\
                  Start llama-server on the pinned endpoint, or set EVAL_MODEL_BASE_URL."
-            )
-        })?;
+        )
+    })?;
     if !resp.status().is_success() {
         return Err(format!(
             "eval model preflight HTTP {} at {url}",

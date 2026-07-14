@@ -93,13 +93,8 @@ hello
         assert!(r.ok, "{:?}", r.result);
         assert_eq!(r.result["content"], "sandbox-ok");
         // on disk under agents/demo/bot/fs/
-        let on_disk = dir
-            .path()
-            .join("agents/demo/bot/fs/notes/hello.txt");
-        assert_eq!(
-            std::fs::read_to_string(&on_disk).unwrap(),
-            "sandbox-ok"
-        );
+        let on_disk = dir.path().join("agents/demo/bot/fs/notes/hello.txt");
+        assert_eq!(std::fs::read_to_string(&on_disk).unwrap(), "sandbox-ok");
         // escape denied
         let bad = invoke_tool(
             &ctx,
@@ -130,7 +125,9 @@ hello
         );
         assert!(w.ok, "{:?}", w.result);
         assert_eq!(
-            std::fs::read_to_string(ws.join("hello.txt")).unwrap().trim(),
+            std::fs::read_to_string(ws.join("hello.txt"))
+                .unwrap()
+                .trim(),
             "Hello, Terminal-Bench"
         );
         // Outside evals/runs is denied
@@ -140,7 +137,11 @@ hello
             "fs_write",
             &json!({"path": "x.txt", "content": "nope"}),
         );
-        assert!(!bad.ok, "must reject fs outside evals/runs: {:?}", bad.result);
+        assert!(
+            !bad.ok,
+            "must reject fs outside evals/runs: {:?}",
+            bad.result
+        );
     }
 
     #[test]
@@ -192,11 +193,7 @@ hello
                 }],
             })
             .unwrap();
-        let search = invoke_tool(
-            &ctx,
-            "list_sessions",
-            &json!({"query": "widgets"}),
-        );
+        let search = invoke_tool(&ctx, "list_sessions", &json!({"query": "widgets"}));
         assert!(search.ok, "{:?}", search.result);
         assert_eq!(search.result["mode"], "search");
         assert_eq!(search.result["count"], 1);

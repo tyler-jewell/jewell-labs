@@ -61,7 +61,11 @@ pub fn is_valid_agent_tab(tab: &str) -> bool {
 pub fn normalize_agent_tab(tab: &str) -> &'static str {
     let t = tab.trim().to_ascii_lowercase();
     // legacy alias
-    let t = if t == "settings" { "schema".to_string() } else { t };
+    let t = if t == "settings" {
+        "schema".to_string()
+    } else {
+        t
+    };
     AGENT_TABS
         .iter()
         .find(|tab| tab.id == t)
