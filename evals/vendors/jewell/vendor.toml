@@ -1,0 +1,28 @@
+# SSoT harness config for the Jewell (native) vendor.
+# Path: evals/vendors/jewell/vendor.toml
+#
+# Allowed to change for evals: this file only (agent id, product base, sampling pin,
+# capabilities). Product behavior (fs_* tools, agent markdown) lives under rust-agent/.
+# Forbidden: coach prompts in Rust adapters — catalog items are the task SSoT.
+
+id = "jewell"
+name = "Jewell"
+enabled = true
+kind = "native_jewell"
+config_ssot = "evals/vendors/jewell/vendor.toml"
+capabilities = [
+  "closed_form",
+  "multi_step",
+  "agent_os",
+  "host_eval",
+  "write_file",
+  "read_file",
+  "terminal",
+  "coding",
+]
+
+[native_jewell]
+agent = "core/orchestrator"
+base_url = "http://127.0.0.1:3000"
+# Sampling pin for catalog runs (wiring, not a prompt). Omit to use agent frontmatter.
+eval_temperature = 0.0

@@ -15,6 +15,8 @@ pub struct ToolContext {
     pub caller_agent: Option<String>,
     /// Allowlist from frontmatter `tools:` (empty = none; `*` = all).
     pub allowed_tools: Vec<String>,
+    /// When set (catalog eval), fs tools use this root instead of `agents/{id}/fs/`.
+    pub sandbox_override: Option<PathBuf>,
 }
 
 impl ToolContext {
@@ -35,6 +37,7 @@ impl ToolContext {
             repo_root,
             caller_agent,
             allowed_tools,
+            sandbox_override: None,
         }
     }
 
@@ -45,6 +48,11 @@ impl ToolContext {
 
     pub fn allow_all(mut self) -> Self {
         self.allowed_tools = vec!["*".into()];
+        self
+    }
+
+    pub fn with_sandbox_override(mut self, root: Option<PathBuf>) -> Self {
+        self.sandbox_override = root;
         self
     }
 }

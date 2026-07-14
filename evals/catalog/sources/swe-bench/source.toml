@@ -1,0 +1,9 @@
+id = "swe-bench"
+name = "SWE-bench (lite subset)"
+description = "Real GitHub issue→patch software engineering tasks. Canonical agentic coding benchmark used to compare Claude Code, Codex, OpenHands, mini-SWE, etc."
+links = ["https://www.swebench.com/", "https://github.com/SWE-bench/SWE-bench", "https://arxiv.org/abs/2310.06770"]
+license = "MIT"
+version = "catalog-lite-v1"
+tags = ["coding", "autonomy", "agent_execution", "multi_step"]
+enabled = true
+notes = "Full SWE-bench needs Docker + repo checkout + unit tests. Catalog ships a provenance-linked lite subset; default execution is skip-honest unless dry wiring check."

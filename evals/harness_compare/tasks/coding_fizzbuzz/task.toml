@@ -1,0 +1,6 @@
+id = "coding_fizzbuzz"
+title = "Implement fizzbuzz.py"
+track = "coding"
+timeout_s = 240
+capabilities = ["terminal", "write_file", "coding"]
+n_runs_default = 1

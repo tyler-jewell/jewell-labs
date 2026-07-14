@@ -22,6 +22,19 @@ pub struct ChatRequest {
     pub message: String,
     #[serde(default)]
     pub history: Vec<ChatMessage>,
+    /// Eval-only LLM host base (no `/v1`), e.g. `http://127.0.0.1:8091`.
+    /// Overrides agent frontmatter server host/port for multi-vendor fairness.
+    #[serde(default)]
+    pub eval_base_url: Option<String>,
+    /// Eval-only model id for chat/completions `model` field.
+    #[serde(default)]
+    pub eval_model: Option<String>,
+    /// Eval-only absolute path for agent `fs_*` tools (catalog workspace root).
+    #[serde(default)]
+    pub eval_fs_root: Option<String>,
+    /// Eval-only sampling temperature (gated with other eval pins; use 0 for determinism).
+    #[serde(default)]
+    pub eval_temperature: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,6 +92,25 @@ impl ChatEndpoint {
             temperature,
             max_tokens,
         }
+    }
+
+    /// Apply multi-vendor eval model pin (catalog fairness).
+    pub fn with_eval_pin(mut self, eval_base_url: Option<&str>, eval_model: Option<&str>) -> Self {
+        if let Some(u) = eval_base_url {
+            let u = u.trim().trim_end_matches('/');
+            if !u.is_empty() {
+                self.base_url = u
+                    .strip_suffix("/v1")
+                    .unwrap_or(u)
+                    .to_string();
+            }
+        }
+        if let Some(m) = eval_model {
+            if !m.trim().is_empty() {
+                self.model_alias = m.trim().to_string();
+            }
+        }
+        self
     }
 }
 

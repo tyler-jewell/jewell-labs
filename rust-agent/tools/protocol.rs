@@ -10,6 +10,7 @@ pub fn tools_system_appendix(allowed: &[String]) -> String {
         return "## Tools\n\nNo tools are enabled for this agent (frontmatter `tools:` is empty).\n"
             .into();
     }
+    // Mechanical only: call format + schema list. Behavioral policy lives in agent body.
     let mut lines = vec![
         "## Built-in tools (host-enforced)".to_string(),
         "You may only call tools listed below.".to_string(),
@@ -17,8 +18,7 @@ pub fn tools_system_appendix(allowed: &[String]) -> String {
         "```tool".to_string(),
         r#"{"name":"list_tools","arguments":{}}"#.to_string(),
         "```".to_string(),
-        "Then wait for tool_result before answering the user.".to_string(),
-        "If asked what tools you have: call `list_tools` first — do not invent YAML agent templates.".to_string(),
+        "Then wait for tool_result.".to_string(),
         "".to_string(),
         "### Allowed tools".to_string(),
     ];
@@ -28,10 +28,6 @@ pub fn tools_system_appendix(allowed: &[String]) -> String {
             t.name, t.category, t.description
         ));
     }
-    lines.push("".into());
-    lines.push(
-        "After tool_result: answer the user in clear markdown (bullet list of tool names).".into(),
-    );
     lines.join("\n")
 }
 
@@ -153,5 +149,41 @@ mod extract_tests {
     fn rejects_non_tool_json() {
         assert!(extract_tool_call(r#"{"foo":1}"#).is_none());
         assert!(extract_tool_call("hello there").is_none());
+    }
+
+    #[test]
+    fn tools_appendix_is_mechanical_not_policy() {
+        // Behavioral policy must live in agent body, not the host tool appendix.
+        let appendix = tools_system_appendix(&["list_tools".into(), "fs_write".into()]);
+        assert!(
+            appendix.contains("```tool"),
+            "appendix must teach the call fence format: {appendix}"
+        );
+        assert!(
+            appendix.contains("list_tools") && appendix.contains("fs_write"),
+            "appendix must list allowed tool names: {appendix}"
+        );
+        for banned in [
+            "do not invent",
+            "call list_tools first",
+            "answer the user in clear markdown",
+            "call the appropriate tool",
+            "rather than only describing",
+            "fs_write) rather",
+        ] {
+            assert!(
+                !appendix.to_ascii_lowercase().contains(banned),
+                "tools appendix must not contain policy phrase {banned:?}: {appendix}"
+            );
+        }
+    }
+
+    #[test]
+    fn system_with_tools_keeps_agent_body_as_policy_ssot() {
+        let body = "You are the core orchestrator.\nAfter each tool_result, keep calling tools until done.";
+        let sys = system_with_tools(body, &["list_tools".into()]);
+        assert!(sys.starts_with("You are the core orchestrator"));
+        assert!(sys.contains("## Built-in tools"));
+        assert!(sys.contains("keep calling tools until done"));
     }
 }

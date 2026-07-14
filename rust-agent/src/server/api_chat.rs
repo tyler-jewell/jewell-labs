@@ -64,20 +64,89 @@ pub async fn chat_stream(
         }
     };
 
-    let endpoint = ChatEndpoint::from_agent(&agent, &model);
+    // Eval pins: require JEWELL_ALLOW_EVAL_PINS=1 + loopback URL + evals/runs fs root.
+    let has_pin = req.eval_base_url.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
+        || req.eval_model.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
+        || req.eval_fs_root.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false)
+        || req.eval_temperature.is_some();
+    if let Err(e) = crate::eval_guards::require_eval_pins_enabled(has_pin) {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({ "error": e })),
+        )
+            .into_response();
+    }
+    let eval_base = match crate::eval_guards::sanitize_eval_base_url(req.eval_base_url.as_deref()) {
+        Ok(v) => v,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": e })),
+            )
+                .into_response();
+        }
+    };
+    let eval_model = match crate::eval_guards::sanitize_eval_model(req.eval_model.as_deref()) {
+        Ok(v) => v,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": e })),
+            )
+                .into_response();
+        }
+    };
+    let sandbox = match crate::eval_guards::sanitize_eval_fs_root(
+        req.eval_fs_root.as_deref(),
+        &state.repo_root,
+    ) {
+        Ok(v) => v,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": e })),
+            )
+                .into_response();
+        }
+    };
+    let eval_temp = match crate::eval_guards::sanitize_eval_temperature(req.eval_temperature) {
+        Ok(v) => v,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": e })),
+            )
+                .into_response();
+        }
+    };
+
+    let mut endpoint = ChatEndpoint::from_agent(&agent, &model)
+        .with_eval_pin(eval_base.as_deref(), eval_model.as_deref());
+    if let Some(t) = eval_temp {
+        let max_tokens = endpoint.max_tokens;
+        endpoint = endpoint.with_sampling(t, max_tokens);
+    }
     let allowed = agent.frontmatter.tools.clone();
     let system = system_with_tools(&agent.body, &allowed);
     let history = req.history.clone();
     let user = req.message.clone();
-    let tool_ctx = state.tool_ctx(Some(agent.id.clone()), allowed);
+    let tool_ctx = state
+        .tool_ctx(Some(agent.id.clone()), allowed)
+        .with_sandbox_override(sandbox);
+    let presence = state.presence.clone();
+    let agent_id = agent.id.clone();
+    presence.set_busy(&agent_id, None);
 
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Result<Value, String>>();
     tokio::spawn(async move {
-        if let Err(e) = chat_with_tools(&endpoint, &system, &history, &user, &tool_ctx, tx.clone())
-            .await
-        {
+        let _ = tx.send(Ok(json!({ "status": "busy" })));
+        let result =
+            chat_with_tools(&endpoint, &system, &history, &user, &tool_ctx, tx.clone()).await;
+        if let Err(e) = result {
             let _ = tx.send(Err(e));
         }
+        let _ = tx.send(Ok(json!({ "status": "idle" })));
+        presence.set_idle(&agent_id);
     });
 
     let stream = stream::unfold(rx, |mut rx| async move {
@@ -139,6 +208,7 @@ async fn chat_with_tools(
                 role: "assistant".into(),
                 content: full,
             });
+            // Mechanical payload only — multi-step policy lives in the agent system prompt.
             next_user = format!(
                 "tool_result for {}:\n{}",
                 result.name,

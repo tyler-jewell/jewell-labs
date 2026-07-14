@@ -1,9 +1,9 @@
-//! Schema, nav, and tools listing endpoints.
+//! Schema, nav, tools, and presence endpoints.
 
 use super::state::AppState;
 use crate::{
-    agents_dir, builtin_tools, invoke_tool, list_tools_from_fs, load_agent, schema_summary,
-    tools_dir, LATEST_SCHEMA_VERSION,
+    agents_dir, builtin_tools, invoke_tool, list_agents, list_tools_from_fs, load_agent,
+    schema_summary, tools_dir, LATEST_SCHEMA_VERSION,
 };
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -83,4 +83,22 @@ pub async fn invoke_tool_api(
         StatusCode::BAD_REQUEST
     };
     (status, Json(result)).into_response()
+}
+
+/// Operational presence: idle/busy per agent, grouped by project path.
+pub async fn list_presence(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    let ids: Vec<String> = list_agents(&state.agents_dir)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|a| a.id)
+        .collect();
+    let agents = state.presence.for_agents(&ids);
+    let groups = crate::presence::group_by_project(&agents);
+    Json(json!({
+        "agents": agents,
+        "groups": groups.into_iter().map(|(project, rows)| json!({
+            "project": project,
+            "agents": rows,
+        })).collect::<Vec<_>>(),
+    }))
 }

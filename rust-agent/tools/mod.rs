@@ -3,6 +3,7 @@
 //! Both `src/*` and agent markdown files use this registry. Agents only receive
 //! tools listed in frontmatter `tools:` (or `*` for all).
 
+pub mod fs;
 pub mod introspect;
 pub mod mutate;
 pub mod sessions;
@@ -73,7 +74,73 @@ hello
         let tools = builtin_tools();
         assert!(tools.iter().any(|t| t.category == "introspect"));
         assert!(tools.iter().any(|t| t.category == "sessions"));
-        assert_eq!(tools.len(), 15); // lean core + mutate
+        assert_eq!(tools.len(), 19); // + fs_write/fs_read/fs_list
+        assert!(tools.iter().any(|t| t.category == "fs"));
+    }
+
+    #[test]
+    fn agent_fs_write_read_and_escape_denied() {
+        let dir = tempdir().unwrap();
+        let ctx = ctx_tmp(dir.path());
+        // write
+        let w = invoke_tool(
+            &ctx,
+            "fs_write",
+            &json!({"path": "notes/hello.txt", "content": "sandbox-ok"}),
+        );
+        assert!(w.ok, "{:?}", w.result);
+        let r = invoke_tool(&ctx, "fs_read", &json!({"path": "notes/hello.txt"}));
+        assert!(r.ok, "{:?}", r.result);
+        assert_eq!(r.result["content"], "sandbox-ok");
+        // on disk under agents/demo/bot/fs/
+        let on_disk = dir
+            .path()
+            .join("agents/demo/bot/fs/notes/hello.txt");
+        assert_eq!(
+            std::fs::read_to_string(&on_disk).unwrap(),
+            "sandbox-ok"
+        );
+        // escape denied
+        let bad = invoke_tool(
+            &ctx,
+            "fs_write",
+            &json!({"path": "../escape.txt", "content": "x"}),
+        );
+        assert!(!bad.ok, "escape must fail: {:?}", bad.result);
+        let abs = invoke_tool(
+            &ctx,
+            "fs_write",
+            &json!({"path": "/tmp/nope.txt", "content": "x"}),
+        );
+        assert!(!abs.ok, "abs must fail: {:?}", abs.result);
+    }
+
+    #[test]
+    fn sandbox_override_writes_eval_workspace() {
+        let dir = tempdir().unwrap();
+        let mut ctx = ctx_tmp(dir.path());
+        // Override must live under {repo_root}/evals/runs/ (eval pin policy).
+        let ws = dir.path().join("evals/runs/catalog-test/workspace");
+        std::fs::create_dir_all(&ws).unwrap();
+        ctx.sandbox_override = Some(ws.clone());
+        let w = invoke_tool(
+            &ctx,
+            "fs_write",
+            &json!({"path": "hello.txt", "content": "Hello, Terminal-Bench"}),
+        );
+        assert!(w.ok, "{:?}", w.result);
+        assert_eq!(
+            std::fs::read_to_string(ws.join("hello.txt")).unwrap().trim(),
+            "Hello, Terminal-Bench"
+        );
+        // Outside evals/runs is denied
+        ctx.sandbox_override = Some(dir.path().join("secrets"));
+        let bad = invoke_tool(
+            &ctx,
+            "fs_write",
+            &json!({"path": "x.txt", "content": "nope"}),
+        );
+        assert!(!bad.ok, "must reject fs outside evals/runs: {:?}", bad.result);
     }
 
     #[test]

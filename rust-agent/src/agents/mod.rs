@@ -1,7 +1,6 @@
 //! Load and list agents from `agents/{category}/{agent-name}.md`.
 //!
-//! **Core agent** (required): `core/orchestrator` — see [`CORE_AGENT_ID`].
-//! Specialty agents (e.g. tutoring/*) are optional and never required for core gates.
+//! Fixed team: orchestrator + learner + agent-implementor + tool-implementor.
 
 mod list;
 mod path;
@@ -17,8 +16,20 @@ pub use path::{
 
 /// Stable id of the product core agent (orchestrator).
 pub const CORE_AGENT_ID: &str = "core/orchestrator";
+pub const LEARNER_ID: &str = "system/learner";
+pub const AGENT_IMPLEMENTOR_ID: &str = "system/agent-implementor";
+pub const TOOL_IMPLEMENTOR_ID: &str = "system/tool-implementor";
 
-/// Explicit lean tool allowlist claimed by the core orchestrator (must match frontmatter).
+/// Fixed product team (exactly these four).
+pub const TEAM_AGENT_IDS: &[&str] = &[
+    CORE_AGENT_ID,
+    LEARNER_ID,
+    AGENT_IMPLEMENTOR_ID,
+    TOOL_IMPLEMENTOR_ID,
+];
+
+/// Explicit lean tool allowlist for core orchestrator (must match frontmatter).
+/// Specialists own write_agent / write_tool / learn — not the orchestrator.
 pub const CORE_AGENT_TOOLS: &[&str] = &[
     "list_tools",
     "app_status",
@@ -30,11 +41,12 @@ pub const CORE_AGENT_TOOLS: &[&str] = &[
     "list_sessions",
     "get_session",
     "upsert_session",
-    "write_agent",
-    "write_tool",
+    "run_agent",
     "run_eval",
-    "learn",
-    "research_models",
+    // Agent-scoped sandbox under agents/{id}/fs/
+    "fs_write",
+    "fs_read",
+    "fs_list",
 ];
 
 #[cfg(test)]
@@ -63,26 +75,26 @@ body
     fn list_nested_agents() {
         let dir = tempdir().unwrap();
         fs::create_dir_all(dir.path().join("core")).unwrap();
-        fs::create_dir_all(dir.path().join("tutoring")).unwrap();
+        fs::create_dir_all(dir.path().join("system")).unwrap();
         fs::write(
             dir.path().join("core/orchestrator.md"),
             sample(
                 "orchestrator",
                 "orchestrator",
-                r#"["list_tools","app_status","list_agents","get_agent","certify_agent","get_schema","list_models","list_sessions","get_session","upsert_session"]"#,
+                r#"["list_tools","app_status","list_agents","get_agent","certify_agent","get_schema","list_models","list_sessions","get_session","upsert_session","run_agent","run_eval"]"#,
             ),
         )
         .unwrap();
         fs::write(
-            dir.path().join("tutoring/math-tutor.md"),
-            sample("math-tutor", "agent", r#"["list_tools"]"#),
+            dir.path().join("system/learner.md"),
+            sample("learner", "agent", r#"["list_tools","learn"]"#),
         )
         .unwrap();
 
         let items = list_agents(dir.path()).unwrap();
         assert_eq!(items.len(), 2);
         assert!(items.iter().any(|i| i.id == "core/orchestrator"));
-        assert!(items.iter().any(|i| i.id == "tutoring/math-tutor"));
+        assert!(items.iter().any(|i| i.id == "system/learner"));
         let orch = items.iter().find(|i| i.id == "core/orchestrator").unwrap();
         assert_eq!(orch.role, "orchestrator");
         assert!(orch.certification.ok);
@@ -122,13 +134,16 @@ body
         let (c, n) = parse_agent_ref("core/orchestrator").unwrap();
         assert_eq!(c, "core");
         assert_eq!(n, "orchestrator");
-        assert!(validate_segment("math-tutor").is_ok());
+        assert!(validate_segment("agent-implementor").is_ok());
     }
 
     #[test]
     fn core_constants_are_stable() {
         assert_eq!(CORE_AGENT_ID, "core/orchestrator");
-        assert!(CORE_AGENT_TOOLS.len() >= 10);
+        assert_eq!(TEAM_AGENT_IDS.len(), 4);
+        assert!(CORE_AGENT_TOOLS.contains(&"run_agent"));
+        assert!(!CORE_AGENT_TOOLS.contains(&"write_agent"));
+        assert!(!CORE_AGENT_TOOLS.contains(&"learn"));
     }
 
     #[test]

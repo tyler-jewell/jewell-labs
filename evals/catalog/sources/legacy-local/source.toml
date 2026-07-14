@@ -1,0 +1,9 @@
+id = "legacy-local"
+name = "Legacy local smokes (off by default)"
+description = "Former harness_compare synthetic tasks (fizzbuzz, sum_range, closed_form). Kept only as optional regression source."
+links = ["https://github.com/"]
+license = "MIT"
+version = "legacy-v1"
+tags = ["legacy", "smoke"]
+enabled = false
+notes = "Not included in default catalog discovery. Enable explicitly with --include-disabled if needed."

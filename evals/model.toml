@@ -1,0 +1,8 @@
+# Shared inference pin for multi-vendor catalog evals (apples-to-apples).
+# Override: EVAL_MODEL_BASE_URL, EVAL_MODEL, EVAL_MODEL_LABEL, or EVAL_MODEL_FILE.
+
+base_url = "http://127.0.0.1:8091/v1"
+model = "local"
+label = "Qwen3-4B-Instruct-2507-Q8_0"
+# Used when pinning Hermes config `model.default` (path or alias).
+path = "/Users/studio/.llama/models/Qwen3-4B-Instruct-2507-Q8_0.gguf"

@@ -12,7 +12,7 @@ pub fn spec() -> ToolSpec {
         parameters: json!({
             "type": "object",
             "properties": {
-                "id": { "type": "string", "description": "Existing agent id e.g. tutoring/math-tutor" },
+                "id": { "type": "string", "description": "Existing agent id e.g. system/learner" },
                 "stem": { "type": "string", "description": "Alias for id" },
                 "markdown": { "type": "string", "description": "Raw markdown to certify without writing" }
             },

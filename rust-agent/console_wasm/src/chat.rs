@@ -1,6 +1,8 @@
-//! Chat form + POST SSE stream using console_core::parse_sse_data_line.
+//! Chat form + POST SSE stream using console_core parsers.
 
-use console_core::{parse_sse_data_line, render_markdown, SseEvent};
+use console_core::{
+    parse_sse_data_line, render_markdown, run_event_from_sse, RunEvent, RunKind, SseEvent,
+};
 use js_sys::{Function, Reflect, Uint8Array};
 use serde_json::Value;
 use wasm_bindgen::prelude::*;
@@ -33,12 +35,14 @@ pub fn wire_chat(document: &Document) -> Result<(), JsValue> {
     let transcript_c = transcript.clone();
     let input_c = input.clone();
     let btn_c = btn_send.clone();
+    let document_c = document.clone();
     let closure = Closure::wrap(Box::new(move |e: SubmitEvent| {
         e.prevent_default();
         let agent = agent_c.clone();
         let transcript = transcript_c.clone();
         let input = input_c.clone();
         let btn = btn_c.clone();
+        let document = document_c.clone();
         let message = input.value().trim().to_string();
         if message.is_empty() {
             return;
@@ -46,7 +50,7 @@ pub fn wire_chat(document: &Document) -> Result<(), JsValue> {
         input.set_value("");
         btn.set_disabled(true);
         wasm_bindgen_futures::spawn_local(async move {
-            let _ = run_chat_turn(&transcript, &agent, &message).await;
+            let _ = run_chat_turn(&document, &transcript, &agent, &message).await;
             btn.set_disabled(false);
             let _ = input.focus();
         });
@@ -56,7 +60,13 @@ pub fn wire_chat(document: &Document) -> Result<(), JsValue> {
     Ok(())
 }
 
-async fn run_chat_turn(transcript: &Element, agent: &str, message: &str) -> Result<(), JsValue> {
+async fn run_chat_turn(
+    document: &Document,
+    transcript: &Element,
+    agent: &str,
+    message: &str,
+) -> Result<(), JsValue> {
+    clear_run_events(document)?;
     append_msg(transcript, "user", message, false)?;
     let assistant = append_msg(transcript, "assistant", "", true)?;
     let body = serde_json::json!({
@@ -74,6 +84,14 @@ async fn run_chat_turn(transcript: &Element, agent: &str, message: &str) -> Resu
     let resp: Response = resp_val.dyn_into()?;
     if !resp.ok() {
         set_md(&assistant, &format!("Error: HTTP {}", resp.status()), false)?;
+        push_run(
+            document,
+            &RunEvent {
+                kind: RunKind::Error,
+                label: "error".into(),
+                detail: format!("HTTP {}", resp.status()),
+            },
+        )?;
         return Ok(());
     }
     let body_stream = resp
@@ -85,6 +103,7 @@ async fn run_chat_turn(transcript: &Element, agent: &str, message: &str) -> Resu
     let mut full = String::new();
     let mut line_buf = String::new();
     let mut saw_tool = false;
+    let mut last_model_push = 0usize;
     loop {
         let read = Reflect::get(&reader, &JsValue::from_str("read"))?;
         let read: Function = read.dyn_into()?;
@@ -103,7 +122,19 @@ async fn run_chat_turn(transcript: &Element, agent: &str, message: &str) -> Resu
         while let Some(pos) = line_buf.find('\n') {
             let line = line_buf[..pos].to_string();
             line_buf = line_buf[pos + 1..].to_string();
-            match parse_sse_data_line(&line) {
+            let ev = parse_sse_data_line(&line);
+            if let Some(re) = run_event_from_sse(&ev) {
+                // Coalesce model chips: only push every ~40 chars growth.
+                if re.kind == RunKind::Model {
+                    if full.len().saturating_sub(last_model_push) >= 40 || last_model_push == 0 {
+                        push_run(document, &re)?;
+                        last_model_push = full.len() + re.detail.len();
+                    }
+                } else {
+                    push_run(document, &re)?;
+                }
+            }
+            match ev {
                 SseEvent::Skip | SseEvent::Done => {}
                 SseEvent::Error(e) => set_md(&assistant, &format!("Error: {e}"), false)?,
                 SseEvent::Delta(d) => {
@@ -113,6 +144,7 @@ async fn run_chat_turn(transcript: &Element, agent: &str, message: &str) -> Resu
                 SseEvent::ToolCall(tc) => {
                     saw_tool = true;
                     full.clear();
+                    last_model_push = 0;
                     set_md(&assistant, "", true)?;
                     let name = tc.get("name").and_then(|n| n.as_str()).unwrap_or("tool");
                     append_tool(transcript, "tool_call", name, &tc)?;
@@ -120,6 +152,7 @@ async fn run_chat_turn(transcript: &Element, agent: &str, message: &str) -> Resu
                 SseEvent::ToolResult(tr) => {
                     saw_tool = true;
                     full.clear();
+                    last_model_push = 0;
                     set_md(&assistant, "", true)?;
                     let name = tr.get("name").and_then(|n| n.as_str()).unwrap_or("tool");
                     let ok = tr.get("ok").and_then(|o| o.as_bool()).unwrap_or(false);
@@ -137,6 +170,41 @@ async fn run_chat_turn(transcript: &Element, agent: &str, message: &str) -> Resu
     } else {
         let _ = assistant.remove();
     }
+    Ok(())
+}
+
+fn clear_run_events(document: &Document) -> Result<(), JsValue> {
+    if let Some(ol) = document.get_element_by_id("run-events") {
+        ol.set_inner_html("");
+    }
+    if let Some(wrap) = document.get_element_by_id("run-events-wrap") {
+        let _ = wrap.set_attribute("hidden", "");
+    }
+    Ok(())
+}
+
+fn push_run(document: &Document, ev: &RunEvent) -> Result<(), JsValue> {
+    let Some(ol) = document.get_element_by_id("run-events") else {
+        return Ok(());
+    };
+    if let Some(wrap) = document.get_element_by_id("run-events-wrap") {
+        let _ = wrap.remove_attribute("hidden");
+    }
+    let li = document.create_element("li")?;
+    li.set_class_name(&format!("run-ev run-ev-{}", ev.kind.as_str()));
+    let kind = document.create_element("span")?;
+    kind.set_class_name("run-ev-kind");
+    kind.set_text_content(Some(ev.kind.as_str()));
+    let label = document.create_element("span")?;
+    label.set_class_name("run-ev-label");
+    label.set_text_content(Some(&ev.label));
+    let detail = document.create_element("span")?;
+    detail.set_class_name("run-ev-detail");
+    detail.set_text_content(Some(&ev.detail));
+    li.append_child(&kind)?;
+    li.append_child(&label)?;
+    li.append_child(&detail)?;
+    ol.append_child(&li)?;
     Ok(())
 }
 

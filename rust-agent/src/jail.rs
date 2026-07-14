@@ -271,8 +271,8 @@ mod tests {
     #[test]
     fn agent_file_rel_ok() {
         assert_eq!(
-            agent_file_rel("tutoring/math-tutor").unwrap(),
-            "tutoring/math-tutor.md"
+            agent_file_rel("system/learner").unwrap(),
+            "system/learner.md"
         );
         assert!(agent_file_rel("../x").is_err());
         assert!(agent_file_rel("only").is_err());

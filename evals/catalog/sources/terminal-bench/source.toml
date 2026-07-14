@@ -1,0 +1,9 @@
+id = "terminal-bench"
+name = "Terminal-Bench (lite subset)"
+description = "Hard multi-step tasks in real terminal environments (CLI autonomy). Used to score agents like Codex CLI, Claude Code, and open harnesses on long-horizon shell work."
+links = ["https://www.tbench.ai/", "https://github.com/harbor-framework/terminal-bench", "https://arxiv.org/abs/2601.11868"]
+license = "Apache-2.0"
+version = "catalog-lite-v1"
+tags = ["terminal", "autonomy", "agent_execution", "tool_call", "multi_step"]
+enabled = true
+notes = "Full Terminal-Bench uses Harbor/Docker per task. Lite pack registers real task families with honest sandbox_skip for non-dry harnesses."

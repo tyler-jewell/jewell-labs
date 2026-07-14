@@ -1,0 +1,6 @@
+id = "coding_fix_bug"
+title = "Fix off-by-one in sum_range"
+track = "coding"
+timeout_s = 240
+capabilities = ["terminal", "write_file", "coding"]
+n_runs_default = 1

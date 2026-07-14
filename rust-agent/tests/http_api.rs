@@ -104,7 +104,11 @@ async fn orchestrator_page_agents_only_sidebar() {
             && !body.contains("aria-label=\"Tools\""),
         "tools must not be peer sidebar nav"
     );
-    assert!(body.contains("tool-meta") || body.contains("Available tools"));
+    assert!(body.contains("tool-meta") || body.contains("tool-chips"));
+    assert!(
+        !body.contains("agents/core/orchestrator.md") && !body.contains("src-pill"),
+        "must not surface file paths in UI"
+    );
     assert!(
         body.contains("/static/pkg/boot.js"),
         "must load WASM bootstrap only"
@@ -148,9 +152,14 @@ async fn api_lists_core_orchestrator_and_tools() {
     let (st, tools) = json_get("/api/tools").await;
     assert_eq!(st, StatusCode::OK);
     let t = tools["tools"].as_array().expect("tools");
-    assert_eq!(t.len(), 15, "lean tool surface expected 15, got {}", t.len());
+    assert_eq!(t.len(), 19, "registry expected 19 tools, got {}", t.len());
     assert!(t.iter().any(|x| x["name"] == "list_tools"));
+    assert!(t.iter().any(|x| x["name"] == "run_agent"));
     assert!(t.iter().all(|x| x["name"] != "search_chat_logs"));
+    assert!(
+        list.iter().any(|a| a["id"] == "system/learner"),
+        "missing learner"
+    );
 }
 
 #[tokio::test]
@@ -167,17 +176,18 @@ async fn core_orchestrator_can_invoke_list_tools_via_api() {
     assert_eq!(st, StatusCode::OK, "{body}");
     assert_eq!(body["ok"], true, "{body}");
     let tools = body["result"]["tools"].as_array().expect("tools");
-    assert_eq!(tools.len(), 15);
+    // allowlist-filtered to CORE_AGENT_TOOLS
+    assert_eq!(tools.len(), 15, "{body}");
 }
 
 #[tokio::test]
-async fn math_tutor_denied_list_agents() {
+async fn tool_implementor_denied_list_agents() {
     let (st, body) = json_post(
         "/api/tools/invoke",
         serde_json::json!({
             "name": "list_agents",
             "arguments": {},
-            "caller_agent": "tutoring/math-tutor"
+            "caller_agent": "system/tool-implementor"
         }),
     )
     .await;
@@ -213,4 +223,39 @@ async fn nav_api_lists_src_aligned_tabs() {
     let tabs = nav["agent_tabs"].as_array().unwrap();
     let ids: Vec<_> = tabs.iter().filter_map(|t| t["id"].as_str()).collect();
     assert_eq!(ids, vec!["chat", "sessions", "schema", "registry"]);
+}
+
+#[tokio::test]
+async fn evals_page_and_list_api() {
+    let app = build_router(default_state());
+    let res = app
+        .oneshot(
+            Request::builder()
+                .uri("/evals")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(res.status(), StatusCode::OK);
+    let body = String::from_utf8(
+        res.into_body().collect().await.unwrap().to_bytes().to_vec(),
+    )
+    .unwrap();
+    assert!(body.contains("eval-run-list"));
+    assert!(body.contains("btn-run-team") || body.contains("Run team gate"));
+    assert!(body.contains("eval-result"));
+    assert!(!body.contains("evals/runs/"), "no path chrome");
+
+    let (st, runs) = json_get("/api/evals/runs?limit=5").await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(runs.get("runs").is_some(), "{runs}");
+    assert!(runs.get("dir").is_none(), "must not expose runs dir path");
+    if let Some(arr) = runs["runs"].as_array() {
+        if let Some(first) = arr.first() {
+            assert!(first.get("path").is_none(), "no filesystem path in list");
+            assert!(first.get("label").is_some(), "human label required");
+            assert!(first.get("passed").is_some(), "passed flag required");
+        }
+    }
 }

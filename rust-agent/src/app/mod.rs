@@ -1,5 +1,6 @@
-//! Leptos SSR UI — agents-first console.
+//! Leptos SSR UI — agents-first console + evals dashboard.
 
+mod evals_panel;
 mod panels;
 mod shell;
 mod views;

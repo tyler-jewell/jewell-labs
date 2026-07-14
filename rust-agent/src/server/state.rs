@@ -1,5 +1,6 @@
 //! Shared HTTP application state.
 
+use crate::presence::PresenceBoard;
 use crate::sessions::SessionStore;
 use crate::tools::ToolContext;
 use std::path::PathBuf;
@@ -12,6 +13,7 @@ pub struct AppState {
     pub crate_root: PathBuf,
     pub repo_root: PathBuf,
     pub static_dir: PathBuf,
+    pub presence: PresenceBoard,
 }
 
 impl AppState {

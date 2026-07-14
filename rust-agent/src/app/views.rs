@@ -12,6 +12,8 @@ pub struct AgentRowView {
     pub tools: Vec<String>,
     pub cert_ok: bool,
     pub selected: bool,
+    /// Operational presence: `idle` or `busy`.
+    pub presence: String,
 }
 
 #[derive(Clone, Debug)]
@@ -20,7 +22,7 @@ pub struct CategoryAgents {
     pub agents: Vec<AgentRowView>,
 }
 
-/// What the main panel is showing (single active agent; Empty only during redirect).
+/// What the main panel is showing.
 #[derive(Clone, Debug)]
 pub enum ShellFocus {
     Empty,
@@ -33,4 +35,6 @@ pub enum ShellFocus {
         registry_json: String,
         allowed_tools_json: String,
     },
+    /// Global evals dashboard (not per-agent).
+    Evals,
 }

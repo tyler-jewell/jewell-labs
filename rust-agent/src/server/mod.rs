@@ -4,6 +4,7 @@
 
 mod api_agents;
 mod api_chat;
+mod api_evals;
 mod api_meta;
 mod api_sessions;
 mod pages;
@@ -23,6 +24,7 @@ pub fn build_router(state: AppState) -> Router {
     let static_dir = state.static_dir.clone();
     Router::new()
         .route("/", get(pages::home))
+        .route("/evals", get(pages::evals_page))
         .route("/agents/{category}/{name}", get(pages::agent_page))
         .route(
             "/api/agents",
@@ -46,6 +48,10 @@ pub fn build_router(state: AppState) -> Router {
             get(api_sessions::get_session).put(api_sessions::put_session),
         )
         .route("/api/chat/stream", post(api_chat::chat_stream))
+        .route("/api/presence", get(api_meta::list_presence))
+        .route("/api/evals/runs", get(api_evals::list_runs))
+        .route("/api/evals/runs/{id}", get(api_evals::get_run))
+        .route("/api/evals/run/stream", post(api_evals::run_stream))
         .route("/healthz", get(|| async { "ok" }))
         .nest_service("/static", ServeDir::new(static_dir))
         .with_state(Arc::new(state))
@@ -60,5 +66,6 @@ pub fn default_state() -> AppState {
         crate_root: crate_root(),
         repo_root: repo_root(),
         static_dir: PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("static"),
+        presence: crate::presence::PresenceBoard::new(),
     }
 }

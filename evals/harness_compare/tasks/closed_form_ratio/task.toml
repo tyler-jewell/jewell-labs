@@ -1,0 +1,6 @@
+id = "closed_form_ratio"
+title = "Closed-form numeric answer"
+track = "closed_form"
+timeout_s = 120
+capabilities = ["closed_form"]
+n_runs_default = 1

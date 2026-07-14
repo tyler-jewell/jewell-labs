@@ -27,6 +27,10 @@ pub async fn home() -> impl IntoResponse {
     Redirect::temporary(&format!("/agents/{CORE_AGENT_ID}?tab=chat"))
 }
 
+pub async fn evals_page(State(state): State<Arc<AppState>>) -> impl IntoResponse {
+    render_shell(&state, ShellFocus::Evals, true)
+}
+
 pub async fn agent_page(
     State(state): State<Arc<AppState>>,
     Path((category, name)): Path<(String, String)>,
@@ -34,7 +38,7 @@ pub async fn agent_page(
 ) -> impl IntoResponse {
     let id = agent_id(&category, &name);
     let tab = normalize_agent_tab(&q.tab).to_string();
-    render_shell(&state, agent_focus(&state, &id, &tab))
+    render_shell(&state, agent_focus(&state, &id, &tab), false)
 }
 
 fn agent_focus(state: &AppState, id: &str, tab: &str) -> ShellFocus {
@@ -86,8 +90,17 @@ fn agent_focus(state: &AppState, id: &str, tab: &str) -> ShellFocus {
 }
 
 fn sidebar_agents(state: &AppState, selected: Option<&str>) -> Vec<CategoryAgents> {
-    let agents: Vec<AgentRowView> = list_agents(&state.agents_dir)
-        .unwrap_or_default()
+    let listed = list_agents(&state.agents_dir).unwrap_or_default();
+    let ids: Vec<String> = listed.iter().map(|a| a.id.clone()).collect();
+    let presence = state.presence.for_agents(&ids);
+    let status_of = |id: &str| -> String {
+        presence
+            .iter()
+            .find(|p| p.agent_id == id)
+            .map(|p| p.status.as_str().to_string())
+            .unwrap_or_else(|| "idle".into())
+    };
+    let agents: Vec<AgentRowView> = listed
         .into_iter()
         .map(|a| AgentRowView {
             id: a.id.clone(),
@@ -100,6 +113,7 @@ fn sidebar_agents(state: &AppState, selected: Option<&str>) -> Vec<CategoryAgent
             tools: a.tools.clone(),
             cert_ok: a.certification.ok,
             selected: selected.map(|s| s == a.id.as_str()).unwrap_or(false),
+            presence: status_of(&a.id),
         })
         .collect();
     group_by_category(agents, |a| a.category.clone())
@@ -108,12 +122,15 @@ fn sidebar_agents(state: &AppState, selected: Option<&str>) -> Vec<CategoryAgent
         .collect()
 }
 
-fn render_shell(state: &AppState, focus: ShellFocus) -> Response {
+fn render_shell(state: &AppState, focus: ShellFocus, evals_selected: bool) -> Response {
     let selected = match &focus {
         ShellFocus::Agent { id, .. } => Some(id.as_str()),
-        ShellFocus::Empty => None,
+        ShellFocus::Empty | ShellFocus::Evals => None,
     };
     let agent_groups = sidebar_agents(state, selected);
-    let html = view! { <AppShell agent_groups=agent_groups focus=focus /> }.to_html();
+    let html = view! {
+        <AppShell agent_groups=agent_groups focus=focus evals_selected=evals_selected />
+    }
+    .to_html();
     Html(html).into_response()
 }

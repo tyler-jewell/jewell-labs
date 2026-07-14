@@ -1,21 +1,24 @@
 use rust_agent::eval::{parse_dataset, run_agent_eval};
-use rust_agent::CORE_AGENT_ID;
+use rust_agent::{CORE_AGENT_ID, LEARNER_ID};
 
 #[test]
-fn parse_rejects_empty_require() {
-    assert!(parse_dataset("## case: bad\ntrack: tool_plan\nrequire_tools: []\n").is_err());
+fn parse_requires_nonempty_require_tools() {
+    let bad = "## case: x\ntrack: tool_plan\nprompt: p\nrequire_tools: []\n";
+    assert!(parse_dataset(bad).is_err());
 }
 
 #[test]
-fn parse_ok_and_run_core() {
-    let c = parse_dataset("## case: s\ntrack: tool_plan\nrequire_tools: [list_tools]\n").unwrap();
-    assert_eq!(c[0].require_tools, vec!["list_tools"]);
+fn core_and_learner_tool_plan_green() {
     let r = run_agent_eval(CORE_AGENT_ID, "tool_plan").expect("core eval");
-    assert!(r.summary.tool_plan_accuracy >= 1.0, "{:?}", r.summary);
-}
-
-#[test]
-fn specialty_eval_runs() {
-    let r = run_agent_eval("tutoring/math-tutor", "tool_plan").expect("tutor");
-    assert!(r.summary.total >= 1);
+    assert!(
+        r.summary.tool_plan_accuracy >= 1.0,
+        "core {:?}",
+        r.summary
+    );
+    let r = run_agent_eval(LEARNER_ID, "tool_plan").expect("learner");
+    assert!(
+        r.summary.tool_plan_accuracy >= 1.0,
+        "learner {:?}",
+        r.summary
+    );
 }

@@ -3,7 +3,10 @@
 use super::ground_truth::{CaseResult, GroundTruth};
 use super::scoring::{fact, score_introspection};
 use crate::agent_run::run_tool_plan;
-use crate::agents::{load_agent, CORE_AGENT_ID, CORE_AGENT_TOOLS};
+use crate::agents::{
+    load_agent, AGENT_IMPLEMENTOR_ID, CORE_AGENT_ID, CORE_AGENT_TOOLS, LEARNER_ID,
+    TEAM_AGENT_IDS, TOOL_IMPLEMENTOR_ID,
+};
 use crate::paths::{agents_dir, crate_root, registry_path, repo_root, sessions_dir};
 use crate::tools::{all_tool_names, ToolContext};
 use serde_json::{json, Value};
@@ -24,7 +27,16 @@ pub fn orchestrator_ctx() -> (ToolContext, crate::schema::AgentDocument) {
     (ctx, doc)
 }
 
-/// Full lean tool plan: every registered core tool with safe args.
+/// Tools the orch plan must invoke (excludes run_eval depth + live run_agent).
+pub fn core_plan_require_tools() -> Vec<&'static str> {
+    CORE_AGENT_TOOLS
+        .iter()
+        .copied()
+        .filter(|n| *n != "run_eval")
+        .collect()
+}
+
+/// Full lean orch plan: every CORE tool with safe args (dry_run for run_agent).
 pub fn full_introspection_plan(_gt: &GroundTruth) -> Vec<(String, Value)> {
     vec![
         ("list_tools".into(), json!({})),
@@ -46,15 +58,11 @@ pub fn full_introspection_plan(_gt: &GroundTruth) -> Vec<(String, Value)> {
                 ]
             }),
         ),
-        (
-            "list_sessions".into(),
-            json!({"agent_id": CORE_AGENT_ID}),
-        ),
+        ("list_sessions".into(), json!({"agent_id": CORE_AGENT_ID})),
         (
             "get_session".into(),
             json!({"agent_id": CORE_AGENT_ID, "session_id": "eval-core"}),
         ),
-        // search mode (merged into list_sessions)
         (
             "list_sessions".into(),
             json!({
@@ -62,33 +70,19 @@ pub fn full_introspection_plan(_gt: &GroundTruth) -> Vec<(String, Value)> {
                 "agent_id": CORE_AGENT_ID
             }),
         ),
-        // mutate tools — dry paths only. Do NOT call run_eval here: core self-eval
-        // sets eval depth=1, so nested run_eval would always fail closed.
+        // Nested LLM not required for CI — dry_run loads specialist metadata
         (
-            "learn".into(),
-            json!({"targets": ["tutoring/math-tutor"], "dry_run": true}),
+            "run_agent".into(),
+            json!({"agent_id": LEARNER_ID, "dry_run": true}),
         ),
+        // Sandbox FS probe (agents/core/orchestrator/fs/)
         (
-            "research_models".into(),
-            json!({"list_sources_only": true}),
+            "fs_write".into(),
+            json!({"path": "eval-probe.txt", "content": "JEWELL_FS_OK"}),
         ),
-        (
-            "write_agent".into(),
-            json!({
-                "id": "lab/eval-write-probe",
-                "markdown": "---\nschema_version: 1\nname: eval-write-probe\ndescription: probe\ndefault_model: qwen3-0.6b\nrole: agent\ntools:\n  - list_tools\n---\n\nprobe body MUST_EVAL\n",
-                "require_eval": false
-            }),
-        ),
-        (
-            "write_tool".into(),
-            json!({
-                "scope": "agent_local",
-                "agent_id": "tutoring/math-tutor",
-                "name": "hint",
-                "content": "# hint tool draft\n"
-            }),
-        ),
+        ("fs_read".into(), json!({"path": "eval-probe.txt"})),
+        ("fs_list".into(), json!({})),
+        // Do NOT call run_eval here: core self-eval sets eval depth=1
     ]
 }
 
@@ -96,22 +90,15 @@ pub fn run_tool_plan_case(ctx: &ToolContext, gt: &GroundTruth) -> CaseResult {
     let t0 = std::time::Instant::now();
     let plan = full_introspection_plan(gt);
     let run = run_tool_plan(ctx, &plan);
-    let tool_names = all_tool_names();
-    // require every registered tool except run_eval (self-eval depth guard)
-    let require: Vec<&str> = tool_names
-        .iter()
-        .map(|s| s.as_str())
-        .filter(|n| *n != "run_eval")
-        .collect();
+    let require = core_plan_require_tools();
     let mut facts = score_introspection(gt, &run, &require);
 
-    // Core allowlist matches registry and frontmatter
-    let reg: BTreeSet<_> = tool_names.iter().cloned().collect();
+    let reg: BTreeSet<_> = all_tool_names().into_iter().collect();
     let claimed: BTreeSet<_> = CORE_AGENT_TOOLS.iter().map(|s| (*s).to_string()).collect();
     facts.push(fact(
-        "lean_registry_eq_core_claims",
-        "registered tools equal CORE_AGENT_TOOLS",
-        reg == claimed,
+        "core_subset_of_registry",
+        "CORE_AGENT_TOOLS ⊆ full registry",
+        claimed.is_subset(&reg),
         format!("{:?}", claimed),
         format!("{:?}", reg),
     ));
@@ -126,7 +113,6 @@ pub fn run_tool_plan_case(ctx: &ToolContext, gt: &GroundTruth) -> CaseResult {
         format!("{:?}", gt.orchestrator_tools),
     ));
 
-    // Search-via-list
     let search_ok = run
         .tool_rounds
         .iter()
@@ -148,17 +134,44 @@ pub fn run_tool_plan_case(ctx: &ToolContext, gt: &GroundTruth) -> CaseResult {
         "search count>=1",
         if search_ok { "ok" } else { "missing" },
     ));
-    // run_eval is registered (not invoked in self-eval plan — avoids depth re-entry)
     facts.push(fact(
         "run_eval_registered",
-        "run_eval in registry",
-        tool_names.iter().any(|n| n == "run_eval"),
+        "run_eval in CORE_AGENT_TOOLS",
+        claimed.contains("run_eval"),
         "run_eval",
-        if tool_names.iter().any(|n| n == "run_eval") {
+        if claimed.contains("run_eval") {
             "run_eval"
         } else {
             "missing"
         },
+    ));
+    facts.push(fact(
+        "run_agent_dry",
+        "run_agent dry_run loads learner metadata",
+        run.result_for("run_agent")
+            .map(|v| v.get("dry_run").and_then(|d| d.as_bool()) == Some(true))
+            .unwrap_or(false),
+        "dry_run true",
+        "see run_agent result",
+    ));
+
+    // Fixed team present
+    let team: BTreeSet<_> = TEAM_AGENT_IDS.iter().map(|s| (*s).to_string()).collect();
+    facts.push(fact(
+        "team_agents_present",
+        "all four team agents listed",
+        team.is_subset(&gt.agent_ids),
+        format!("{:?}", team),
+        format!("{:?}", gt.agent_ids),
+    ));
+    facts.push(fact(
+        "team_ids_known",
+        "learner + implementors exist as constants",
+        [LEARNER_ID, AGENT_IMPLEMENTOR_ID, TOOL_IMPLEMENTOR_ID]
+            .iter()
+            .all(|id| gt.agent_ids.contains(*id)),
+        "system/*",
+        format!("{:?}", gt.agent_ids),
     ));
 
     let correct = facts.iter().all(|f| f.correct) && run.all_tool_ok();

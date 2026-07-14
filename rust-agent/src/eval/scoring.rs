@@ -57,11 +57,16 @@ pub fn score_introspection(
             .flatten()
             .filter_map(|a| a.get("id").and_then(|x| x.as_str()).map(|s| s.to_string()))
             .collect();
+        // Team must be present; transient lab/* fixtures allowed during concurrent tests
+        let team: BTreeSet<_> = crate::agents::TEAM_AGENT_IDS
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
         facts.push(fact(
             "agent_ids",
-            "list_agents returns exact agent ids",
-            set_eq(&got, &gt.agent_ids),
-            format!("{:?}", gt.agent_ids),
+            "list_agents includes fixed team",
+            team.is_subset(&got),
+            format!("{:?}", team),
             format!("{:?}", got),
         ));
         facts.push(fact(
@@ -81,10 +86,11 @@ pub fn score_introspection(
             .flatten()
             .filter_map(|t| t.get("name").and_then(|x| x.as_str()).map(|s| s.to_string()))
             .collect();
+        // gt.tool_names = allowlist view for this agent
         let missing: Vec<_> = gt.tool_names.difference(&got).cloned().collect();
         facts.push(fact(
             "all_tools_present",
-            "list_tools covers registry",
+            "list_tools covers agent allowlist",
             missing.is_empty(),
             "[]",
             format!("{:?}", missing),
@@ -97,18 +103,20 @@ pub fn score_introspection(
             .get("builtin_tool_count")
             .and_then(|x| x.as_u64())
             .unwrap_or(0) as usize;
+        let registry_n = crate::tools::all_tool_names().len();
         facts.push(fact(
             "agent_count",
-            "app_status.agent_count",
-            ac == gt.agent_count,
-            gt.agent_count,
+            "app_status.agent_count >= fixed team size",
+            ac >= crate::agents::TEAM_AGENT_IDS.len(),
+            format!(">= {}", crate::agents::TEAM_AGENT_IDS.len()),
             ac,
         ));
+        // app_status reports full registry size; gt.tool_count is allowlist size
         facts.push(fact(
             "tool_count",
-            "app_status.builtin_tool_count",
-            tc == gt.tool_count,
-            gt.tool_count,
+            "app_status.builtin_tool_count == registry",
+            tc == registry_n,
+            registry_n,
             tc,
         ));
         let reg = v

@@ -5,8 +5,14 @@ pub mod agents;
 pub mod app;
 pub mod chat;
 /// Re-export pure UI parsers used by host tests (same as WASM client).
-pub use console_core::{parse_sse_data_line, render_markdown, SseEvent};
+pub use console_core::{
+    fold_run_events, parse_sse_data_line, render_markdown, run_event_from_sse, RunEvent, RunKind,
+    SseEvent,
+};
 pub mod eval;
+pub mod eval_guards;
+pub mod presence;
+pub use presence::{PresenceBoard, PresenceRow, PresenceStatus};
 pub mod jail;
 pub mod learn;
 pub mod model_eval;
@@ -30,7 +36,8 @@ pub use agent_run::{run_agent_with_tools, run_tool_plan, AgentRunResult, ToolRou
 pub use agents::{
     agent_id, certify_agent_file, list_agents, load_agent, parse_agent_ref, path_is_under_agents,
     resolve_agent_path, validate_segment, validate_stem, write_agent_file,
-    write_agent_file_unlocked, AgentListItem, AgentsError, CORE_AGENT_ID, CORE_AGENT_TOOLS,
+    write_agent_file_unlocked, AgentListItem, AgentsError, AGENT_IMPLEMENTOR_ID, CORE_AGENT_ID,
+    CORE_AGENT_TOOLS, LEARNER_ID, TEAM_AGENT_IDS, TOOL_IMPLEMENTOR_ID,
 };
 pub use jail::{agent_file_rel, JailError, WriteJail};
 pub use learn::{learn_improve, LearnReport, LearnRequest};
@@ -41,8 +48,13 @@ pub use model_research::{
 };
 pub use chat::{complete_chat, stream_chat, ChatEndpoint, ChatError, ChatMessage, ChatRequest};
 pub use eval::{
-    eval_all_agents, probe_eval_depth_exceeded, require_green_eval, run_agent_eval, run_full_eval,
-    write_eval_report, write_report, EvalError, EvalReport, GroundTruth,
+    default_vendor_ids, eval_all_agents, evals_runs_dir, filter_items, known_harnesses,
+    list_eval_runs, list_source_summaries, load_catalog_items, load_eval_model, load_eval_run,
+    load_vendor_manifests, probe_eval_depth_exceeded, require_green_eval, run_agent_eval,
+    run_catalog_sample, run_compare, run_dry_all, run_full_eval, run_team_collaboration_case,
+    sample_items, write_eval_report, write_report, CatalogFilter, CatalogItem, CatalogRunOpts,
+    CatalogRunReport, CompareItem, CompareOpts, CompareReport, EvalError, EvalModel, EvalReport,
+    EvalRunSummary, GroundTruth, SourceSummary, VendorManifest,
 };
 // re-export probe via eval module
 pub use nav::{

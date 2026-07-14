@@ -1,7 +1,6 @@
-# Structural eval dataset pointer for core/orchestrator
-# Host still uses the built-in full tool plan for the core agent.
+# Structural eval dataset for core/orchestrator
 
-## case: smoke-list
+## case: smoke-manager
 track: tool_plan
 prompt: "List tools and agents"
-require_tools: [list_tools, list_agents, app_status]
+require_tools: [list_tools, list_agents, run_agent, run_eval]

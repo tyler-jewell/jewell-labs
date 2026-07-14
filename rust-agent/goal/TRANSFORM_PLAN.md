@@ -1,4 +1,8 @@
-# Multi-Phase Transform Plan — rust-agent
+# Multi-Phase Transform Plan — rust-agent (ARCHIVED)
+
+> **Superseded by [`TEAM.md`](./TEAM.md)** — product is now a fixed four-agent team
+> (orchestrator / learner / agent-implementor / tool-implementor) + Evals dashboard.
+> Kept for historical research notes only.
 
 **Checkpoint commit:** `efde332` (2026-07-11)  
 **Date:** 2026-07-11  

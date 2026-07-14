@@ -1,9 +1,10 @@
 //! Full eval orchestration and report persistence.
 
-use super::cases::{orchestrator_ctx, run_tool_plan_case};
+use super::cases::{core_plan_require_tools, orchestrator_ctx, run_tool_plan_case};
 use super::llm_case::run_llm_case;
 use super::ground_truth::{CaseResult, EvalReport, EvalSummary, GroundTruth};
 use super::scoring::fact;
+use super::team::run_team_collaboration_case;
 use crate::chat::ChatEndpoint;
 use crate::paths::registry_path;
 use crate::registry::ModelRegistry;
@@ -15,7 +16,10 @@ pub async fn run_full_eval(include_llm: bool) -> EvalReport {
     let (ctx, doc) = orchestrator_ctx();
     let gt = GroundTruth::collect(&ctx);
 
-    let mut cases = vec![run_tool_plan_case(&ctx, &gt)];
+    let mut cases = vec![
+        run_tool_plan_case(&ctx, &gt),
+        run_team_collaboration_case(),
+    ];
     let mut tracks = vec!["tool_plan".to_string()];
     let mut model = None;
     let mut server = None;
@@ -82,21 +86,21 @@ pub async fn run_full_eval(include_llm: bool) -> EvalReport {
         Some(llm_cases.iter().filter(|c| c.correct).count() as f64 / llm_cases.len() as f64)
     };
 
-    let plan = cases.iter().find(|c| c.track == "tool_plan");
-    // `run_eval` is registered and claim-tested, but must not be *invoked* inside the
-    // core self-eval plan (eval_depth guard). Complete introspection = all other tools called.
+    let plan = cases.iter().find(|c| c.id == "core_orchestrator_tool_plan");
+    let team = cases.iter().find(|c| c.id == "team_collaboration");
+    // Complete = orch CORE tools (minus run_eval) invoked + team gate green
     let all_tools = plan
         .map(|c| {
             let called: BTreeSet<_> = c.tools_called.iter().cloned().collect();
-            let required: BTreeSet<_> = gt
-                .tool_names
-                .iter()
-                .filter(|n| n.as_str() != "run_eval")
-                .cloned()
+            let required: BTreeSet<_> = core_plan_require_tools()
+                .into_iter()
+                .map(|s| s.to_string())
                 .collect();
             required.is_subset(&called) && c.correct
         })
         .unwrap_or(false);
+    let team_ok = team.map(|c| c.correct).unwrap_or(false);
+    let complete = all_tools && team_ok;
 
     EvalReport {
         id: format!(
@@ -121,7 +125,7 @@ pub async fn run_full_eval(include_llm: bool) -> EvalReport {
             tool_plan_accuracy: tool_plan_acc,
             llm_agent_accuracy: llm_acc,
             all_tools_invoked_in_plan: all_tools,
-            complete_introspection: all_tools,
+            complete_introspection: complete,
         },
     }
 }

@@ -20,8 +20,9 @@ pub(crate) fn AgentPanel(
     } else {
         (String::new(), id.clone())
     };
+    // Human title: stem only (id remains in data attributes / API)
+    let title = name.clone();
 
-    // Primary tabs first; schema/registry secondary
     let primary = ["chat", "sessions"];
     let tabs: Vec<(AgentTabDef, String, String)> = AGENT_TABS
         .iter()
@@ -45,18 +46,16 @@ pub(crate) fn AgentPanel(
     view! {
         <header class="agent-header">
             <div class="agent-title-row">
-                <h1 class="agent-title">{id.clone()}</h1>
-                <span class="src-pill">{format!("agents/{category}/{name}.md")}</span>
+                <h1 class="agent-title">{title}</h1>
             </div>
             <nav class="tabs" aria-label="Agent workspace">
                 {tabs.into_iter().map(|(tdef, href, class)| {
                     view! {
-                        <a class=class href=href title=tdef.src_module>{tdef.label}</a>
+                        <a class=class href=href>{tdef.label}</a>
                     }
                 }).collect_view()}
             </nav>
             <div class="tool-meta" id="tool-meta" data-tools=allowed_tools_json.clone()>
-                <div class="tool-meta-label">"Available tools"</div>
                 <div class="tool-chips" id="tool-chips"></div>
                 <pre class="tool-def code-block" id="tool-def" hidden></pre>
             </div>
@@ -78,14 +77,13 @@ pub(crate) fn AgentPanel(
             } else if tab == "registry" {
                 view! {
                     <div class="settings" data-tab="registry">
-                        <h2>"Model registry"</h2>
+                        <h2>"Model"</h2>
                         <pre class="code-block">{registry_json}</pre>
                     </div>
                 }.into_any()
             } else if tab == "sessions" {
                 view! {
                     <div class="sessions" data-agent=id.clone() data-tab="sessions">
-                        <h2>"Sessions"</h2>
                         <ul id="session-list" class="session-list"></ul>
                         <button type="button" class="btn ghost" id="btn-new-session" data-agent=id.clone()>
                             "New session"
@@ -97,10 +95,13 @@ pub(crate) fn AgentPanel(
                 let id_form = id.clone();
                 view! {
                     <div class="chat" data-agent=id_chat data-tab="chat" id="chat-root">
+                        <div class="run-events-wrap" hidden id="run-events-wrap">
+                            <ol class="run-events" id="run-events" aria-live="polite"></ol>
+                        </div>
                         <div class="transcript" id="transcript" aria-live="polite"></div>
                         <form class="composer" id="chat-form" data-agent=id_form>
                             <textarea id="chat-input" name="message" rows="2"
-                                placeholder="Message this agent…" autocomplete="off"></textarea>
+                                placeholder="Message…" autocomplete="off"></textarea>
                             <button type="submit" class="btn primary" id="btn-send">"Send"</button>
                         </form>
                     </div>

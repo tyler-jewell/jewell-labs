@@ -140,9 +140,9 @@ mod tests {
     #[test]
     fn agent_local_tools_only_for_that_agent() {
         let d = tempdir().unwrap();
-        fs::create_dir_all(d.path().join("tutoring/math-tutor/tools")).unwrap();
-        fs::write(d.path().join("tutoring/math-tutor/tools/hint.md"), "x").unwrap();
-        let local = list_agent_local_tools(d.path(), "tutoring/math-tutor");
+        fs::create_dir_all(d.path().join("system/learner/tools")).unwrap();
+        fs::write(d.path().join("system/learner/tools/hint.md"), "x").unwrap();
+        let local = list_agent_local_tools(d.path(), "system/learner");
         assert_eq!(local, vec!["hint"]);
         assert!(list_agent_local_tools(d.path(), "core/orchestrator").is_empty());
     }

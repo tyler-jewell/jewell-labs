@@ -1,53 +1,56 @@
 # rust-agent
 
-Rust + Leptos agent console for Jewell Labs.
+Rust + Leptos agent console for Jewell Labs — a **fixed four-agent team** with eval-gated improvement.
+
+## Team
+
+| Id | Role | Default model | Owns |
+| --- | --- | --- | --- |
+| `core/orchestrator` | Manager (default) | `qwen3-4b` | introspect, sessions, **`run_agent`**, `run_eval` |
+| `system/learner` | Diagnose / propose | `qwen3.6-35b` | **`learn`** (dry_run default), introspect, `run_eval` |
+| `system/agent-implementor` | Apply agent markdown | `qwen3-4b` | **`write_agent`**, certify, `run_eval` |
+| `system/tool-implementor` | Tool drafts only | `qwen3-4b` | **`write_tool`**, `list_tools` |
+
+Improve loop: **orchestrator → learner → implementor → run_eval**.
 
 ## Layout
 
 ```text
 rust-agent/
-  agents/core/orchestrator.md         # CORE agent (required)
-  agents/{category}/{agent-name}.md   # specialty agents (optional)
-  tools/{category}/{tool-name}.rs     # lean built-in tools
-  src/*                               # app server, schema, UI
-  data/sessions/{category}/{name}/    # server-side chat logs
+  agents/core/orchestrator.md
+  agents/system/{learner,agent-implementor,tool-implementor}.md
+  tools/{category}/{tool}.rs
+  src/*                          # host (immutable to agents)
+  data/sessions/{category}/{name}/
 ```
-
-## Core vs specialty
-
-| | Core | Specialty |
-| --- | --- | --- |
-| Id | `core/orchestrator` | e.g. `tutoring/math-tutor` |
-| Role | `orchestrator` | `agent` |
-| Required for product gate | **yes** | no |
-| Tools | explicit lean list (`CORE_AGENT_TOOLS`, 10 tools) | restricted allowlist |
-
-## Lean tools (10)
-
-| Category | Tools |
-| --- | --- |
-| `introspect` | `list_tools`, `app_status`, `list_agents`, `get_agent`, `certify_agent`, `get_schema`, `list_models` |
-| `sessions` | `list_sessions` (optional `query` = search), `get_session`, `upsert_session` |
 
 ## Run
 
 ```bash
 cd rust-agent
 cargo run
-# open http://127.0.0.1:3000/agents/core/orchestrator
+# open http://127.0.0.1:3000/          → core/orchestrator
+# open http://127.0.0.1:3000/evals    → history, run suite, progress log
 ```
 
 ## Quality gate
 
 ```bash
 ./scripts/test-all.sh
-# includes: line budget ≤300, cargo test, JS SSE tests, core tool-plan eval
+# line budget ≤300, cargo test, wasm build, team tool_plan eval
 ```
 
 Eval-only:
 
 ```bash
 cargo run --bin eval_introspection
+# optional live LLM:
+cargo run --bin eval_introspection -- --llm
 ```
 
-Dataset: `../evals/datasets/agent_introspection.md`
+Artifacts: `evals/runs/agent-introspection-*.json`, `eval-*.json`.
+
+## Docs
+
+- Repo eval principles: `../AGENTS.md`
+- Product SSoT: `goal/TEAM.md`

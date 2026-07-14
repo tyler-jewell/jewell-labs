@@ -9,8 +9,9 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly start: () => void;
     readonly wasm_bindgen_6c4d5582902b7b3a___convert__closures_____invoke___wasm_bindgen_6c4d5582902b7b3a___JsValue__core_7d5f0a2ba6a62c33___result__Result_____wasm_bindgen_6c4d5582902b7b3a___JsError___true_: (a: number, b: number, c: any) => [number, number];
-    readonly wasm_bindgen_6c4d5582902b7b3a___convert__closures_____invoke___web_sys_ccddf0ba9e4a9a91___features__gen_MouseEvent__MouseEvent______true_: (a: number, b: number, c: any) => void;
-    readonly wasm_bindgen_6c4d5582902b7b3a___convert__closures_____invoke___web_sys_ccddf0ba9e4a9a91___features__gen_MouseEvent__MouseEvent______true__2: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen_6c4d5582902b7b3a___convert__closures_____invoke___web_sys_a28424e964f99ab3___features__gen_MouseEvent__MouseEvent______true_: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen_6c4d5582902b7b3a___convert__closures_____invoke___web_sys_a28424e964f99ab3___features__gen_MouseEvent__MouseEvent______true__2: (a: number, b: number, c: any) => void;
+    readonly wasm_bindgen_6c4d5582902b7b3a___convert__closures_____invoke_______true_: (a: number, b: number) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
     readonly __wbindgen_exn_store: (a: number) => void;

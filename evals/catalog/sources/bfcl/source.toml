@@ -1,0 +1,9 @@
+id = "bfcl"
+name = "BFCL / tool-calling (lite subset)"
+description = "Berkeley Function Calling Leaderboard–style tool/function invocation tests. Measures structured tool selection and argument filling for assistant/agent stacks (Hermes, OpenClaw, Claude tools, Grok tools)."
+links = ["https://gorilla.cs.berkeley.edu/leaderboard.html", "https://github.com/ShishirPatil/gorilla/tree/main/berkeley-function-call-leaderboard", "https://huggingface.co/datasets/gorilla-llm/Berkeley-Function-Calling-Leaderboard"]
+license = "Apache-2.0"
+version = "catalog-lite-v1"
+tags = ["tool_call", "assistant", "autonomy"]
+enabled = true
+notes = "Lite items use AST/string tool-call grading locally without live BFCL API. Multi-turn BFCL categories remain sandbox/full-suite."

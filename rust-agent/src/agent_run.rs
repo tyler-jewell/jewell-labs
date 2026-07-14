@@ -87,8 +87,9 @@ pub async fn run_agent_with_tools_max(
                 role: "assistant".into(),
                 content: text,
             });
+            // Mechanical payload only — multi-step policy lives in the agent system prompt.
             next_user = format!(
-                "tool_result for {}:\n{}\n\nIf you have enough information, answer the original question now without more tools. Otherwise call another tool.",
+                "tool_result for {}:\n{}",
                 result.name,
                 serde_json::to_string_pretty(&result.result).unwrap_or_else(|_| "{}".into())
             );

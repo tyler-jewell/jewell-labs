@@ -3,6 +3,8 @@
 
 mod chat;
 mod chips;
+mod evals;
+mod presence;
 mod sessions;
 
 use wasm_bindgen::prelude::*;
@@ -21,5 +23,7 @@ fn boot() -> Result<(), JsValue> {
     chips::wire_tool_chips(&document)?;
     chat::wire_chat(&document)?;
     sessions::wire_sessions(&document)?;
+    presence::wire_presence(&document)?;
+    evals::wire_evals(&document)?;
     Ok(())
 }

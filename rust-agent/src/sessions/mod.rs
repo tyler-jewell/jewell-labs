@@ -22,7 +22,7 @@ mod tests {
         let s = store
             .upsert(ChatSession {
                 id: "sess-1".into(),
-                agent_stem: "tutoring/math-tutor".into(),
+                agent_stem: "system/learner".into(),
                 created: Utc::now(),
                 updated: Utc::now(),
                 title: Some("pi".into()),
@@ -36,14 +36,14 @@ mod tests {
         assert_eq!(s.id, "sess-1");
         assert!(dir
             .path()
-            .join("tutoring/math-tutor/sess-1.json")
+            .join("system/learner/sess-1.json")
             .is_file());
 
-        let list = store.list(Some("tutoring/math-tutor")).unwrap();
+        let list = store.list(Some("system/learner")).unwrap();
         assert_eq!(list.len(), 1);
 
         let hits = store
-            .search("pi", Some("tutoring/math-tutor"), 10)
+            .search("pi", Some("system/learner"), 10)
             .unwrap();
         assert_eq!(hits.len(), 1);
     }

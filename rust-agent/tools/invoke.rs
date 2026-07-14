@@ -2,6 +2,7 @@
 
 use super::allowlist::{resolve_allowlist, tool_matches_allowlist};
 use super::context::ToolContext;
+use super::fs;
 use super::introspect;
 use super::mutate;
 use super::sessions;
@@ -35,15 +36,19 @@ pub(crate) fn all_entries() -> Vec<ToolEntry> {
             sessions::upsert_session::spec(),
             sessions::upsert_session::run,
         ),
-        // mutate (orchestrator write / eval / learn / research)
+        // mutate (specialists write/learn; orch run_agent + run_eval)
         entry(mutate::write_agent::spec(), mutate::write_agent::run),
         entry(mutate::write_tool::spec(), mutate::write_tool::run),
         entry(mutate::run_eval::spec(), mutate::run_eval::run),
         entry(mutate::learn::spec(), mutate::learn::run),
+        entry(mutate::run_agent::spec(), mutate::run_agent::run),
         entry(
             mutate::research_models::spec(),
             mutate::research_models::run,
         ),
+        entry(fs::fs_write::spec(), fs::fs_write::run),
+        entry(fs::fs_read::spec(), fs::fs_read::run),
+        entry(fs::fs_list::spec(), fs::fs_list::run),
     ]
 }
 

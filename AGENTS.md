@@ -257,18 +257,52 @@ A successful minimal run produces:
 3. A written run artifact under `evals/runs/`.
 4. Clear report: `1/1 correct` or `0/1 correct` with grader type noted.
 
-### Core agent eval: rust-agent introspection
+### Core team eval: rust-agent four-agent gate
 
-The **orchestrator** agent (`rust-agent/agents/system/orchestrator.md`) must introspect a running rust-agent app using only built-in tools (`rust-agent/tools/**`).
+Fixed product team under `rust-agent/agents/`:
+
+| Id | Role |
+| --- | --- |
+| `core/orchestrator` | Manager — `run_agent` + `run_eval` (no writes) |
+| `system/learner` | Propose via `learn` |
+| `system/agent-implementor` | Apply `write_agent` |
+| `system/tool-implementor` | Draft `write_tool` |
 
 ```bash
 cd rust-agent
-cargo run --bin eval_introspection          # tool_plan gate (required)
+cargo run --bin eval_introspection          # tool_plan + team_collaboration (required)
 cargo run --bin eval_introspection -- --llm # + live model track
+# UI: open /evals for history, Run, progress log
 ```
 
-- Dataset notes: `evals/datasets/agent_introspection.md`
+- Product SSoT: `rust-agent/goal/TEAM.md`
+- Datasets: `evals/datasets/core/`, `evals/datasets/system/`, `evals/datasets/team/`
 - Artifacts: `evals/runs/agent-introspection-*.json`
-- Pass: `complete_introspection=true`, `tool_plan_accuracy=1.0`, all tools invoked, fact rubric green
+- Pass: `complete_introspection=true`, `tool_plan_accuracy=1.0`, team collaboration green
 
 That is the baseline every harness in this repo should be able to execute before scaling to full datasets.
+
+### Multi-source catalog evals (public agentic benches)
+
+Modular catalog under `evals/catalog/sources/` (SWE-bench, Terminal-Bench, BFCL). Not hard-coded smokes.
+
+```bash
+cd rust-agent
+cargo run -q --bin eval_catalog -- --list-sources
+cargo run -q --bin eval_catalog -- --list-vendors
+cargo run -q --bin eval_catalog -- --sample-n 20 --seed 42
+cargo run -q --bin eval_catalog -- --harnesses jewell,hermes --sample-n 5
+```
+
+**Multi-vendor catalog (default path)**
+
+- Shared model pin: `evals/model.toml` (override with `EVAL_MODEL_BASE_URL` / `EVAL_MODEL`). All vendors use this endpoint — apples-to-apples.
+- Vendors: drop-in `evals/vendors/<id>/vendor.toml`. Empty `--harnesses` runs every `enabled = true` vendor.
+- Add a CLI vendor by writing one TOML file (no Rust edits). See `evals/vendors/README.md`.
+- Sandbox-only items are excluded from sampling unless `--include-sandbox` is set.
+
+- Catalog: `evals/catalog/` (source.toml + items.jsonl per source)
+- Artifacts: `evals/runs/catalog-*.json`
+- UI: `/evals` → **Catalog sample**
+- Structural CI gates remain: `eval_introspection` (tool_plan + team) — separate from public benches
+- Legacy local Harbor tasks: `eval_compare` / optional `legacy-local` source (disabled)

@@ -1,0 +1,58 @@
+# SSoT harness config for the Hermes CLI vendor.
+# Path: evals/vendors/hermes/vendor.toml
+#
+# Allowed to change for evals: this file only (bin, args, toolsets, max-turns, home).
+# Forbidden: coach text in Rust CLI adapter. Task text = catalog item only.
+# `prompt_template` may only substitute {prompt}/{workspace}/{model} mechanically.
+
+id = "hermes"
+name = "Hermes Agent"
+enabled = true
+kind = "cli"
+config_ssot = "evals/vendors/hermes/vendor.toml"
+capabilities = [
+  "terminal",
+  "write_file",
+  "read_file",
+  "coding",
+  "closed_form",
+  "multi_step",
+]
+
+[cli]
+bin_candidates = [
+  "evals/harness_compare/vendor/bin/hermes",
+  "hermes",
+]
+# Mechanical: shared catalog instruction only (no coach preamble).
+prompt_template = "{prompt}"
+# Deterministic sampling for exact-match grades (declared harness pin, not a prompt).
+temperature = 0.0
+# Default = terminal / file execution track.
+# Prefer file+terminal (no code_execution) for reliable workspace writes on small models.
+args = [
+  "chat",
+  "-q", "{prompt}",
+  "-Q",
+  "--yolo",
+  "--max-turns", "25",
+  "-t", "terminal,file",
+]
+cwd = "workspace"
+home_env = "HERMES_HOME"
+home_template = "evals/harness_compare/vendor/hermes-home"
+env_model_name = "HERMES_MODEL"
+
+# Track-specific harness config (tool surface), not prompts.
+# tool_call: empty Hermes tool registry so BFCL grades format emission, not
+# whether Hermes owns a fictional web_search plugin.
+[cli.args_by_track]
+tool_call = [
+  "chat",
+  "-q", "{prompt}",
+  "-Q",
+  "--yolo",
+  "--max-turns", "3",
+  "-t", "none",
+  "--ignore-rules",
+]

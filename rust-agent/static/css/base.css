@@ -67,5 +67,33 @@ button, textarea { font: inherit; }
 
 @media (max-width: 840px) {
   .app { grid-template-columns: 1fr; }
-  .sidebar { border-right: none; border-bottom: 1px solid var(--border); max-height: 42vh; }
+  .sidebar {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    max-height: 38vh;
+    height: auto;
+    position: relative;
+  }
+  .main { min-height: 0; }
+  .composer { grid-template-columns: 1fr; }
+  .btn.primary { width: 100%; }
+}
+
+/* Phone-width (~375px): keep main usable, collapse chrome. */
+@media (max-width: 420px) {
+  :root { --sidebar: 100%; }
+  .app { grid-template-columns: 1fr; overflow-x: hidden; }
+  .sidebar { max-height: 44vh; padding: 0.65rem 0.55rem; }
+  .sidebar-scroll { overflow: auto; -webkit-overflow-scrolling: touch; }
+  .agent-header { padding: 0.75rem 0.85rem 0.4rem; }
+  .panel { padding: 0.65rem 0.75rem 1rem; }
+  .brand-sub, .sidebar-path { display: none; }
+  .transcript { min-height: 200px; }
+  .msg { max-width: 100%; }
+}
+
+/* Wide desktop (~1280px+): roomy main, sticky sidebar. */
+@media (min-width: 1200px) {
+  :root { --sidebar: 300px; }
+  .msg { max-width: min(820px, 92%); }
 }
