@@ -50,12 +50,13 @@
 ## Suggested first real compare
 
 ```bash
+# From rust-agent/ (Rust-only; no first-party Python harness)
 # 1) grader sanity
-python3 run_compare.py --harnesses dry --tasks all
+cargo run -q --bin eval_compare -- --harnesses dry --tasks all
 
 # 2) jewell home field
-python3 run_compare.py --harnesses jewell --tasks agent_os
+cargo run -q --bin eval_compare -- --harnesses jewell --tasks agent_os
 
 # 3) after `hermes` installed + same model endpoint
-python3 run_compare.py --harnesses hermes,jewell --tasks coding,closed_form --n-runs 3
+cargo run -q --bin eval_compare -- --harnesses hermes,jewell --tasks coding,closed_form --n-runs 3
 ```

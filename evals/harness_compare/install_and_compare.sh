@@ -77,17 +77,16 @@ probe_llama_model() {
     return 0
   fi
   # Prefer .data[0].id then .models[0].name
-  id="$(python3 -c '
-import json,sys
-try:
-    j=json.load(sys.stdin)
-except Exception:
-    sys.exit(0)
-if isinstance(j.get("data"), list) and j["data"]:
-    print(j["data"][0].get("id") or "")
-elif isinstance(j.get("models"), list) and j["models"]:
-    print(j["models"][0].get("name") or j["models"][0].get("model") or "")
-' <<<"$json" 2>/dev/null || true)"
+  # Prefer jq when available; else a tiny pure-bash/sed scrape (no first-party Python).
+  if command -v jq >/dev/null 2>&1; then
+    id="$(printf '%s' "$json" | jq -r '
+      if (.data | type) == "array" and (.data | length) > 0 then .data[0].id // empty
+      elif (.models | type) == "array" and (.models | length) > 0 then (.models[0].name // .models[0].model // empty)
+      else empty end
+    ' 2>/dev/null || true)"
+  else
+    id="$(printf '%s' "$json" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+  fi
   echo "$id"
 }
 
@@ -281,7 +280,6 @@ LAUNCH
 
 run_sample() {
   [[ -x "$HERMES_BIN" || -e "$HERMES_BIN" ]] || die "Hermes not installed. Run without --sample-only first."
-  require_cmd python3
 
   export HERMES_HOME
   export HERMES_BIN
@@ -332,16 +330,17 @@ run_sample() {
 
   log "Sample finished. Report: $ROOT/evals/runs/${run_id}.json"
   if [[ -f "$ROOT/evals/runs/${run_id}.json" ]]; then
-    python3 - <<PY
-import json
-from pathlib import Path
-r=json.loads(Path("$ROOT/evals/runs/${run_id}.json").read_text())
-print("kind", r.get("kind"), "items", len(r.get("items") or []))
-for h,s in (r.get("summary") or {}).get("harnesses", {}).items():
-    print(f"  {h}: avg={s['avg_score']:.2f} solid={s['solid_base']:.2f} skip={s['n_skip']}")
-for it in r.get("items") or []:
-    print(f"  [{it['status']}] {it['harness']}/{it['task_id']} score={it['score']}")
-PY
+    if command -v jq >/dev/null 2>&1; then
+      jq -r '
+        "kind \(.kind // "?") items \((.items // []) | length)",
+        ((.summary.harnesses // {}) | to_entries[] |
+          "  \(.key): avg=\(.value.avg_score) solid=\(.value.solid_base) skip=\(.value.n_skip)"),
+        ((.items // [])[] |
+          "  [\(.status)] \(.harness)/\(.task_id) score=\(.score)")
+      ' "$ROOT/evals/runs/${run_id}.json" || true
+    else
+      log "Report written (install jq to pretty-print summary)."
+    fi
   fi
 }
 

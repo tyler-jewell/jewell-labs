@@ -59,45 +59,36 @@ bash evals/harness_compare/install_and_compare.sh --sample-only \
 `evals/harness_compare/vendor/` is **gitignored**. Hermes needs ~18k+ context for tools; the script auto-starts compare `llama-server` on **:8091** (Qwen3-4B, `-c 32768`) when missing. Override: `COMPARE_LLAMA`, `COMPARE_MODEL_PATH`, `COMPARE_CTX`.
 
 ```bash
-python3 evals/harness_compare/review_sample.py --run-dir evals/harness_compare/runs/<run-id>
+# Inspect a compare report (JSON under evals/runs/)
+jq '.summary, (.items[] | {status, harness, task_id, score})' evals/runs/<run-id>.json
 ```
+
+First-party Python harnesses (`run_compare.py`, `lib/**`) have been **removed**. Use the Rust CLI only. Hermes vendor under `vendor/hermes-agent/` is third-party and may remain Python.
 
 ## Manual quick start
 
 ```bash
-# From monorepo root
-cd evals/harness_compare
+# From monorepo root / rust-agent
+cd rust-agent
 
 # Dry-run (no agents; validates tasks + graders against gold workspaces)
-python3 run_compare.py --harnesses dry --tasks all
+cargo run -q --bin eval_compare -- --harnesses dry --tasks all
 
 # Jewell structural + chat (rust-agent must be up for chat tasks)
-#   cargo run -q  # in rust-agent/
-python3 run_compare.py --harnesses jewell --tasks agent_os,closed_form
+#   cargo run -q  # serve API if needed
+cargo run -q --bin eval_compare -- --harnesses jewell --tasks agent_os,closed_form
 
 # Hermes one-shot (vendored binary auto-detected, or HERMES_BIN=...)
-python3 run_compare.py --harnesses hermes --tasks coding,closed_form
+cargo run -q --bin eval_compare -- --harnesses hermes --tasks coding,closed_form
 
 # Head-to-head smoke
-python3 run_compare.py --harnesses hermes,jewell --tasks all --n-runs 1
+cargo run -q --bin eval_compare -- --harnesses hermes,jewell --tasks all --n-runs 1
 
 # Reliability pass (WolfBench-style)
-python3 run_compare.py --harnesses hermes,jewell --tasks coding --n-runs 3
+cargo run -q --bin eval_compare -- --harnesses hermes,jewell --tasks coding --n-runs 3
 ```
 
-Artifacts land under `evals/harness_compare/runs/<run-id>/`:
-
-```text
-runs/<run-id>/
-  report.json          # leaderboard + per-item results
-  report.md            # human table
-  <harness>/<task_id>/run-<n>/
-    workspace/         # isolated copy the agent saw
-    agent_stdout.txt
-    agent_stderr.txt
-    grade.json
-    meta.json
-```
+Artifacts land under `evals/runs/<run-id>.json` (and companion HTML when produced). Per-run workspaces may also appear under `evals/harness_compare/runs/` depending on runner config.
 
 ---
 
@@ -108,7 +99,7 @@ tasks/<task_id>/
   task.toml            # id, track, timeout, capabilities
   instruction.md       # prompt shown to the agent
   workspace/           # seed files (copied per run; no tests here)
-  tests/check.py       # post-hoc grader → exit 0 + JSON to stdout
+  tests/               # optional post-hoc checks (prefer Rust graders in rust-agent)
 ```
 
 `task.toml` fields:
@@ -136,15 +127,10 @@ tasks/<task_id>/
 
 ## Adding a task
 
-1. Copy `tasks/_template/`.
-2. Seed `workspace/` (no answer keys in files the agent can “accidentally” open — put gold only in `tests/`).
-3. Write `tests/check.py` that prints one JSON object:
-
-```json
-{"correct": true, "score": 1.0, "metrics": {"files_ok": 1}, "detail": "…"}
-```
-
-4. Exit `0` always when the grader itself succeeded; use `"correct": false` for agent failure (so infra failures ≠ agent fails).
+1. Copy an existing task under `tasks/` (or the template if present).
+2. Seed `workspace/` (no answer keys in files the agent can “accidentally” open — put gold only in grader-side data).
+3. Wire grading in **Rust** (`rust-agent/src/eval/compare/grade.rs`) for known task ids. Prefer pure Rust structural/file checks. Do **not** add first-party Python harness modules (see monorepo `AGENTS.md`).
+4. Coding *subject* files under workspace may be `.py` when the task itself is Python; that is graded artifact code, not Jewell implementation.
 
 ---
 
@@ -170,6 +156,6 @@ Env overrides:
 
 ## What “done” looks like for a smoke compare
 
-1. `python3 run_compare.py --harnesses dry --tasks all` → all graders green on gold fixtures.
-2. At least one real harness run with `report.md` showing **avg** and **solid_base** per harness.
+1. `cargo run -q --bin eval_compare -- --harnesses dry --tasks all` → all graders green on gold fixtures.
+2. At least one real harness run with a report under `evals/runs/` showing **avg** and **solid_base** per harness.
 3. Capability skips recorded as `skipped` (not silent zeros).

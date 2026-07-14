@@ -26,7 +26,7 @@ Product structural gates (`tool_plan` / team collaboration) stay in `rust-agent/
 
 There is **no** `legacy-local` source and no synthetic in-repo task pack. Coding items are online datasets graded by writing files in the workspace (Jewell `fs_*`, Hermes file/terminal tools).
 
-Gzip decode uses `flate2`. Coding items use `solution_file` grades: reject seed/stub, then run dataset unit tests with local `python3` (no Docker). Without `python3` or test payloads, only structural smoke is reported (`correct=false`, score ≤ 0.5) — never full credit.
+Gzip decode uses `flate2`. Coding items use `solution_file` grades: reject seed/stub, then optionally run **dataset** unit tests with host `python3` against the agent’s workspace `solution.py` (subject artifact — not first-party Jewell harness code; see monorepo `AGENTS.md` ban). Without `python3` or test payloads, only structural smoke is reported (`correct=false`, score ≤ 0.5) — never full credit.
 
 ## Run
 

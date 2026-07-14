@@ -4,6 +4,16 @@ This repository is a workspace for agent harnesses that evaluate language models
 
 Prefer minimal tooling. Prefer local inference. Do not introduce Docker-heavy eval stacks (NeMo Evaluator, etc.) or cloud-only judges unless the user explicitly asks.
 
+### No Python in Jewell agent or Jewell evals
+
+**Hard rule for this monorepo:**
+
+- Do **not** add, restore, or introduce first-party **Python** as implementation language for the Jewell agent (`rust-agent/`) or Jewell-owned evals (`evals/catalog/`, `evals/datasets/`, `evals/harness_compare/` except hermes vendor, `tools/`, etc.).
+- Forbidden: new `.py` modules, Python harness CLIs, Python scoring libraries, or Python rewrites of agent/eval logic under first-party paths.
+- **Sole exception:** vendored Hermes under `evals/harness_compare/vendor/hermes-agent/` (gitignored install tree). That vendor is third-party; do not “clean” or rewrite it into first-party Python.
+- **Allowed (not first-party harness code):** subject workspaces for coding datasets may contain `solution.py` / other Python **artifacts under test**. Optional host-side `python3` may execute those dataset unit tests against the agent’s workspace file. That is grading *subject* code, not Jewell implementation source.
+- Canonical eval entry points are **Rust** (`cargo run --bin eval_catalog`, `eval_compare`, `eval_introspection`) and **curl** against local `llama-server`. Prefer pure Rust graders (regex, file equality, structural checks) when no external subject-language runtime is required.
+
 ---
 
 ## Evaluations and Benchmarking
@@ -19,16 +29,16 @@ The lean path used by upstream llama.cpp (merged as `examples/llama-eval`, PR [#
 | Layer | What | Why |
 | --- | --- | --- |
 | **Serve** | `llama-server` with OpenAI-compatible `/v1/chat/completions` | Load the GGUF once; amortize startup across all items |
-| **Run** | HTTP POST to that endpoint (or `llama-eval.py`) | No custom inference bindings; works with any OpenAI client/`curl` |
+| **Run** | HTTP POST to that endpoint (`curl` or Rust harnesses) | No custom inference bindings; works with any OpenAI client/`curl` |
 | **Score** | Prefer **regex** exact match; fall back to **LLM grader** on a second (or same) `llama-server` | Regex is free; LLM grader only when free-form extraction is needed |
 
-Do **not** use `llama-bench` for quality evals (it measures tokens/s, not accuracy). Do **not** require `lm-evaluation-harness` for the simple path (heavy; optional later for leaderboard parity).
+Do **not** use `llama-bench` for quality evals (it measures tokens/s, not accuracy). Do **not** require `lm-evaluation-harness` for the simple path (heavy; optional later for leaderboard parity). Do **not** add first-party Python harness scripts (see ban above).
 
 ### Prerequisites
 
 1. Built llama.cpp with `llama-server` on `PATH` (or a known absolute path).
 2. A GGUF model path (or `-hf org/repo` if network is allowed).
-3. For full-dataset runs via upstream script: Python 3 + `requests` (+ `tqdm`; datasets may need `datasets` / HuggingFace cache).
+3. For multi-item / multi-vendor runs: a built `rust-agent` tree (`cargo run --bin eval_catalog` / `eval_compare` / `eval_introspection`).
 
 ### Step 0 — Start the model server (do this once)
 
@@ -141,49 +151,37 @@ SCORE: <0|1>
 
 3. Parse `SCORE:` with a regex in the harness. Do not accept free-form “looks good” without a machine-readable field.
 
-### Batch path: official `llama-eval`
+### Batch path: curl smoke or Rust catalog/compare
 
-For multi-item datasets, prefer upstream `llama-eval` rather than inventing a parallel framework.
+For multi-item work in **this** monorepo, prefer the Rust bins (no first-party Python). For a single closed-form item, the curl path above is enough.
 
-Location (clone or copy from llama.cpp):
-
-```text
-examples/llama-eval/llama-eval.py
-```
-
-**Minimal single-item / smoke run (GSM8K + regex):**
+**Catalog sample (public sources, multi-vendor):**
 
 ```bash
-python3 llama-eval.py \
-  --server http://127.0.0.1:8080 \
-  --model local \
-  --dataset gsm8k \
-  --n_cases 1 \
-  --grader-type regex \
-  --threads 1 \
-  --output evals/runs/gsm8k-smoke.json
+cd rust-agent
+cargo run -q --bin eval_catalog -- --list-sources
+cargo run -q --bin eval_catalog -- --sample-n 1 --seed 42
+cargo run -q --bin eval_catalog -- --harnesses jewell,hermes --sample-n 5
 ```
 
-**Same with local LLM grading:**
+**Harness compare (dry / jewell / hermes on shared local tasks):**
 
 ```bash
-python3 llama-eval.py \
-  --server http://127.0.0.1:8080 \
-  --model local \
-  --dataset gsm8k \
-  --n_cases 1 \
-  --grader-type llm \
-  --grader-server http://127.0.0.1:8080 \
-  --grader-model local \
-  --threads 1 \
-  --output evals/runs/gsm8k-llm-grade.json
+cd rust-agent
+cargo run -q --bin eval_compare -- --harnesses dry --tasks all
+cargo run -q --bin eval_compare -- --harnesses dry,jewell,hermes --tasks coding,closed_form,agent_os
 ```
 
-**Built-in datasets:** `gsm8k`, `aime`, `aime2025`, `aime2026`, `gpqa`  
-**Graders:** `regex` | `llm` | `cli` (external script: exit 0 = correct)  
-**Note:** GPQA requires `--grader-type llm`.
+**Core team gate:**
 
-Resume interrupted runs with `--resume` and the same `--output` path. Results also dump companion `.html` reports.
+```bash
+cd rust-agent
+cargo run --bin eval_introspection
+```
+
+Artifacts land under `evals/runs/`. Use `curl` against `llama-server` when you need a one-off generation/grade without spinning a catalog sample.
+
+Upstream llama.cpp still ships `examples/llama-eval/` for reference; **do not** vendor that (or any other) Python harness into this repo as Jewell eval implementation.
 
 ### Harness contract (any agent in this repo)
 
@@ -217,6 +215,7 @@ When implementing or running evals, agents MUST:
 
 6. **Not** pull in heavy frameworks unless the user requests parity with a public leaderboard.
 7. **Not** send prompts or answers to external judge APIs by default; local llama.cpp is the default judge.
+8. **Not** introduce first-party Python into the Jewell agent or Jewell evals (see ban at top). Hermes vendor is the only allowed Python tree.
 
 ### Local JSONL dataset (custom items)
 
@@ -247,6 +246,7 @@ This is enough for the “simplest evaluation dataset item” without HuggingFac
 - [ ] Start validation with `--n_cases 1` (or one JSONL row) before full sweeps
 - [ ] Use `-np` and multi-server only when batch size justifies it
 - [ ] Resume from saved JSON rather than re-running completed items
+- [ ] No new first-party `.py` under agent/evals (hermes vendor only)
 
 ### What “done” looks like for a smoke eval
 
