@@ -6,6 +6,10 @@ port = 4141
 
 [auth]
 allowed_emails = ["tyler.p.jewell@gmail.com"]
+# trust_loopback = true                   # default: trust 127.0.0.1 without a key (local-only).
+                                          # Set FALSE when exposing the gateway (e.g. behind a
+                                          # reverse SSH tunnel, which makes remote traffic look
+                                          # like loopback) so a key is required from everyone.
 # admin_contact = ""                      # defaults to the first allowed email
 # google_client_id = ""                   # only needed for the browser /login flow;
 # google_client_secret = ""               # headless POST /auth/google needs neither

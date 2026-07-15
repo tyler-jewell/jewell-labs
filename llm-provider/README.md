@@ -51,7 +51,10 @@ curl -s -X POST localhost:4141/auth/google -H content-type:application/json \
 # or admin mint:       ./target/release/llm-provider mint <allowed-email>
 ```
 
-Loopback callers (Paperclip/Hermes on this Mac) need **no key**.
+Loopback callers need **no key** — *unless* `auth.trust_loopback = false`, which is the
+correct setting when the gateway is exposed (a reverse SSH tunnel makes remote traffic look
+like loopback), in which case everyone needs a key. See the `paperclip-integration` skill for
+the local / LAN / remote-VPS setups and the tunnel.
 
 ## Config
 

@@ -6,3 +6,4 @@
 *.log
 tuning/results/*.csv
 tuning/results/*.log
+/.gateway-key

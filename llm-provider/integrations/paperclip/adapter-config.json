@@ -1,10 +1,11 @@
 {
-  "_comment": "Paperclip DIRECT adapter config: routes an agent straight through the local llm-provider's OpenAI-compatible endpoint (grok + local models), NO hermes. A Paperclip agent using adapterType 'gateway_openai' with this adapterConfig loads gateway-adapter/index.mjs, whose execute(ctx) POSTs to /v1/chat/completions and streams the reply via ctx.onLog. On this Mac the gateway trusts loopback, so no apiKey is needed; set apiKey/apiKeyFile only for remote access.",
+  "_comment": "Paperclip DIRECT adapter config: routes an agent straight through the llm-provider OpenAI-compatible endpoint (grok + local models + claude), NO hermes. execute(ctx) POSTs to /v1/chat/completions and streams via ctx.onLog. The gateway runs trust_loopback=false (exposed via tunnel), so a key IS required — apiKeyFile points at the minted key. On a REMOTE Paperclip (VPS), set baseUrl to http://127.0.0.1:4141/v1 (the reverse-tunnel endpoint) and apiKeyFile to the key copied onto that host.",
   "adapterType": "gateway_openai",
   "adapterModule": "/Users/studio/Apps/jewell-labs/llm-provider/integrations/paperclip/gateway-adapter/index.mjs",
   "adapterConfig": {
     "baseUrl": "http://localhost:4141/v1",
     "model": "grok-4.20-0309-non-reasoning",
+    "apiKeyFile": "/Users/studio/Apps/jewell-labs/llm-provider/.gateway-key",
     "maxTokens": 4096,
     "timeoutSec": 180
   }

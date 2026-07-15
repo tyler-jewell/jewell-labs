@@ -20,8 +20,10 @@ const DIR = dirname(fileURLToPath(import.meta.url));
 const GATEWAY = process.env.GATEWAY_URL || "http://localhost:4141";
 const PKG_DIR = join(DIR, "gateway-adapter");
 const CFG = JSON.parse(readFileSync(join(DIR, "adapter-config.json"), "utf8"));
-// no apiKey — loopback; GATEWAY_URL lets a pre-cutover run target a temp port
+// GATEWAY_URL lets a run target an alternate port. The gateway requires a key
+// (trust_loopback=false), resolved by the adapter from apiKeyFile in the config.
 const baseConfig = { ...CFG.adapterConfig, baseUrl: `${GATEWAY}/v1` };
+const KEY = readFileSync(CFG.adapterConfig.apiKeyFile, "utf8").trim();
 
 const serverDist = execSync(
   "ls -d ~/.npm/_npx/*/node_modules/@paperclipai/server/dist 2>/dev/null | head -1",
@@ -76,12 +78,14 @@ await section("paperclip's plugin loader accepts the package", async () => {
     ? ok("createServerAdapter() returns a ServerAdapterModule") : bad("createServerAdapter invalid");
 });
 
-// 2. Gateway is a live multi-model provider, reachable on loopback with NO key.
-await section("gateway is a live multi-model provider (loopback, no key)", async () => {
+// 2. Gateway is a live multi-model provider; requires a key (trust_loopback=false).
+await section("gateway is a live multi-model provider (key required)", async () => {
   const h = await fetch(`${GATEWAY}/healthz`).then(r => r.json());
   h.ok ? ok("healthz ok") : bad("healthz not ok");
-  const res = await fetch(`${GATEWAY}/v1/models`);
-  res.status === 200 ? ok("loopback /v1/models needs no key (200)") : bad(`expected 200, got ${res.status}`);
+  const nokey = await fetch(`${GATEWAY}/v1/models`).then(r => r.status);
+  nokey === 401 ? ok("keyless request rejected (401)") : bad(`expected 401, got ${nokey}`);
+  const res = await fetch(`${GATEWAY}/v1/models`, { headers: { Authorization: `Bearer ${KEY}` } });
+  res.status === 200 ? ok("valid key accepted (200)") : bad(`expected 200, got ${res.status}`);
   const models = await res.json();
   const owners = new Set(models.data.map(m => m.owned_by));
   owners.has("xai") ? ok("grok (xai) models present") : bad("no xai models");

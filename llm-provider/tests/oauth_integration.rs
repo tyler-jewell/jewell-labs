@@ -62,6 +62,33 @@ async fn oauth_allowed_denied_and_inference() {
         "claude models should be listed"
     );
 
+    // 1b. Exposed mode: a second instance with trust_loopback=false requires a key even on
+    //     loopback (this is the safe posture behind a reverse SSH tunnel).
+    {
+        let key = llm_provider::identity::KeyStore::new(llm_provider::config::keys_file())
+            .mint("local-test@example.com")
+            .unwrap();
+        let mut exposed = llm_provider::Config::default();
+        exposed.auth.trust_loopback = false;
+        exposed.finalize();
+        let app2 = llm_provider::build_app(exposed);
+        let l2 = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr2 = l2.local_addr().unwrap();
+        tokio::spawn(async move { llm_provider::serve(app2, l2).await.unwrap() });
+        let base2 = format!("http://{addr2}");
+        wait_healthy(&http, &base2).await;
+
+        let no_key = http.get(format!("{base2}/v1/models")).send().await.unwrap();
+        assert_eq!(no_key.status(), 401, "trust_loopback=false must reject keyless loopback");
+        let with_key = http
+            .get(format!("{base2}/v1/models"))
+            .bearer_auth(&key)
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(with_key.status(), 200, "a valid key must pass even with trust_loopback=false");
+    }
+
     // 2. Denied path: non-allowlisted impersonated SA token -> 403 email_not_allowed.
     let Some(deny) = gcloud_token(&[
         "auth",

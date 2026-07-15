@@ -1,5 +1,7 @@
-//! The single auth boundary for `/v1/*`: loopback is trusted, remote needs a valid key.
-//! The decision itself lives in `identity::is_authorized` (pure, unit-tested).
+//! The single auth boundary for `/v1/*`. When `auth.trust_loopback` is true (default),
+//! loopback (127.0.0.1/::1) is trusted without a key; everyone else needs a minted key. Set
+//! `trust_loopback = false` when the gateway is exposed (e.g. behind a reverse SSH tunnel,
+//! which makes remote traffic appear as loopback) so a key is required from everyone.
 
 use std::net::SocketAddr;
 
@@ -18,7 +20,8 @@ pub async fn gate(
     req: Request,
     next: Next,
 ) -> Response {
-    if identity::is_loopback(peer.ip()) || app.keys.verify(req.headers()) {
+    let loopback_ok = app.cfg.auth.trust_loopback && identity::is_loopback(peer.ip());
+    if loopback_ok || app.keys.verify(req.headers()) {
         return next.run(req).await;
     }
     (

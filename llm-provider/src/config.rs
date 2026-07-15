@@ -39,6 +39,10 @@ pub struct AuthConfig {
     pub admin_contact: String,
     pub google_client_id: String,
     pub google_client_secret: String,
+    /// Trust loopback (127.0.0.1/::1) without a key. Keep true for a local-only instance.
+    /// Set FALSE when exposing the gateway publicly (e.g. via a Cloudflare Tunnel), because
+    /// a local tunnel forwards from localhost and would otherwise let the internet in keyless.
+    pub trust_loopback: bool,
 }
 
 /// Kind-tagged provider config. Each provider constructor sees only its own variant —
@@ -103,6 +107,7 @@ impl Default for AuthConfig {
             admin_contact: String::new(),
             google_client_id: String::new(),
             google_client_secret: String::new(),
+            trust_loopback: true,
         }
     }
 }

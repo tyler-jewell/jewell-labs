@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- launchd agent: keeps the reverse SSH tunnel to the Hostinger VPS up so remote Paperclip
+     can reach the Mac gateway over the VPS loopback. Install after key-based SSH works:
+       brew install autossh
+       ssh-copy-id root@2.25.132.76          # passphrase-less key (background service can't type one)
+       cp deploy/com.jewell-labs.llm-tunnel.plist ~/Library/LaunchAgents/
+       launchctl load ~/Library/LaunchAgents/com.jewell-labs.llm-tunnel.plist
+     PATH includes /opt/homebrew/bin for autossh + ssh. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.jewell-labs.llm-tunnel</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/studio/Apps/jewell-labs/llm-provider/deploy/tunnel.sh</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin</string>
+        <key>VPS</key>
+        <string>root@2.25.132.76</string>
+    </dict>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/studio/Apps/jewell-labs/llm-provider/tunnel.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/studio/Apps/jewell-labs/llm-provider/tunnel.log</string>
+</dict>
+</plist>
