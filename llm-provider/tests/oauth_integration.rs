@@ -62,12 +62,10 @@ async fn oauth_allowed_denied_and_inference() {
         "claude models should be listed"
     );
 
-    // 1b. Exposed mode: a second instance with trust_loopback=false requires a key even on
-    //     loopback (this is the safe posture behind a reverse SSH tunnel).
+    // 1b. Exposed mode + full credential lifecycle: a second instance with trust_loopback=false
+    //     requires a key even on loopback (the safe posture behind a reverse tunnel). Exercise
+    //     mint -> use -> refresh(rotate) -> old-token-invalid -> expiry, proving no token is permanent.
     {
-        let key = llm_provider::identity::KeyStore::new(llm_provider::config::keys_file())
-            .mint("local-test@example.com")
-            .unwrap();
         let mut exposed = llm_provider::Config::default();
         exposed.auth.trust_loopback = false;
         exposed.finalize();
@@ -78,15 +76,44 @@ async fn oauth_allowed_denied_and_inference() {
         let base2 = format!("http://{addr2}");
         wait_healthy(&http, &base2).await;
 
+        // mint an access+refresh bundle directly against the shared key store.
+        let b1 = llm_provider::identity::KeyStore::new(llm_provider::config::keys_file(), 3600, 86400)
+            .mint("local-test@example.com")
+            .unwrap();
+        assert!(b1.access_token.starts_with("llmgw-"));
+        assert!(b1.refresh_token.starts_with("llmgwr-"));
+
+        // keyless -> 401; valid access -> 200.
         let no_key = http.get(format!("{base2}/v1/models")).send().await.unwrap();
         assert_eq!(no_key.status(), 401, "trust_loopback=false must reject keyless loopback");
-        let with_key = http
-            .get(format!("{base2}/v1/models"))
-            .bearer_auth(&key)
-            .send()
-            .await
-            .unwrap();
-        assert_eq!(with_key.status(), 200, "a valid key must pass even with trust_loopback=false");
+        let ok = http.get(format!("{base2}/v1/models")).bearer_auth(&b1.access_token).send().await.unwrap();
+        assert_eq!(ok.status(), 200, "a valid access token must pass");
+
+        // refresh rotates: a new bundle works; the old access + old refresh are invalidated.
+        let rr = http.post(format!("{base2}/auth/refresh"))
+            .json(&json!({"refresh_token": b1.refresh_token})).send().await.unwrap();
+        assert_eq!(rr.status(), 200, "refresh must succeed");
+        let b2: Value = rr.json().await.unwrap();
+        let access2 = b2["access_token"].as_str().unwrap().to_string();
+        assert!(b2["refresh_token"].as_str().unwrap().starts_with("llmgwr-"));
+        assert!(b2["expires_at"].as_f64().is_some());
+
+        let old = http.get(format!("{base2}/v1/models")).bearer_auth(&b1.access_token).send().await.unwrap();
+        assert_eq!(old.status(), 401, "old access must be invalidated after rotation");
+        let reuse = http.post(format!("{base2}/auth/refresh"))
+            .json(&json!({"refresh_token": b1.refresh_token})).send().await.unwrap();
+        assert_eq!(reuse.status(), 401, "a used refresh token must not be reusable");
+        let newok = http.get(format!("{base2}/v1/models")).bearer_auth(&access2).send().await.unwrap();
+        assert_eq!(newok.status(), 200, "new access token must pass");
+        let bogus = http.post(format!("{base2}/auth/refresh"))
+            .json(&json!({"refresh_token": "llmgwr-bogus"})).send().await.unwrap();
+        assert_eq!(bogus.status(), 401, "bogus refresh must be rejected");
+
+        // expiry: a bundle minted with access_ttl=0 is already expired -> 401.
+        let expd = llm_provider::identity::KeyStore::new(llm_provider::config::keys_file(), 0, 86400)
+            .mint("exp@example.com").unwrap();
+        let er = http.get(format!("{base2}/v1/models")).bearer_auth(&expd.access_token).send().await.unwrap();
+        assert_eq!(er.status(), 401, "expired access token must be rejected");
     }
 
     // 2. Denied path: non-allowlisted impersonated SA token -> 403 email_not_allowed.
@@ -113,7 +140,7 @@ async fn oauth_allowed_denied_and_inference() {
     assert_eq!(b["contact"], "tyler.p.jewell@gmail.com");
     assert!(b["login_url"].as_str().unwrap().ends_with("/login"));
 
-    // 3. Allowed path: tyler's identity token -> 200 + minted api_key.
+    // 3. Allowed path: tyler's identity token -> 200 + minted access+refresh bundle.
     let allow = gcloud_token(&["auth", "print-identity-token"]).expect("allowed token");
     let r = http
         .post(format!("{base}/auth/google"))
@@ -121,10 +148,12 @@ async fn oauth_allowed_denied_and_inference() {
         .send()
         .await
         .unwrap();
-    assert_eq!(r.status(), 200, "allowlisted token must mint a key");
+    assert_eq!(r.status(), 200, "allowlisted token must mint a bundle");
     let b: Value = r.json().await.unwrap();
-    let key = b["api_key"].as_str().unwrap().to_string();
+    let key = b["access_token"].as_str().unwrap().to_string();
     assert!(key.starts_with("llmgw-"));
+    assert!(b["refresh_token"].as_str().unwrap().starts_with("llmgwr-"));
+    assert!(b["expires_at"].as_f64().is_some());
     assert_eq!(b["email"], "tyler.p.jewell@gmail.com");
 
     // 4. Use the minted key to run grok inference through the gateway.

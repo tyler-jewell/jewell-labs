@@ -81,10 +81,46 @@ pub async fn google_token(State(app): State<AppState>, headers: HeaderMap, body:
             .into_response();
     }
     match app.keys.mint(&email) {
-        Ok(key) => axum::Json(json!({"api_key": key, "email": email, "base_url": format!("{}/v1", app.cfg.public_url)})).into_response(),
+        Ok(b) => axum::Json(json!({
+            "access_token": b.access_token,
+            "refresh_token": b.refresh_token,
+            "expires_at": b.access_expires_at,
+            "email": email,
+            "base_url": format!("{}/v1", app.cfg.public_url),
+        }))
+        .into_response(),
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             axum::Json(json!({"error": {"message": format!("mint failed: {e}"), "type": "api_error"}})),
+        )
+            .into_response(),
+    }
+}
+
+/// POST /auth/refresh — exchange a refresh token for a new access+refresh bundle. The old
+/// tokens are invalidated (rotating refresh), so nothing a client holds lives forever.
+pub async fn refresh(State(app): State<AppState>, body: axum::body::Bytes) -> Response {
+    let token = serde_json::from_slice::<Value>(&body)
+        .ok()
+        .and_then(|v| v["refresh_token"].as_str().map(String::from));
+    let Some(token) = token else {
+        return (
+            StatusCode::BAD_REQUEST,
+            axum::Json(json!({"error": {"message": "Provide a refresh token as JSON {\"refresh_token\": ...}.", "type": "invalid_request_error"}})),
+        )
+            .into_response();
+    };
+    match app.keys.refresh(&token) {
+        Ok(b) => axum::Json(json!({
+            "access_token": b.access_token,
+            "refresh_token": b.refresh_token,
+            "expires_at": b.access_expires_at,
+            "base_url": format!("{}/v1", app.cfg.public_url),
+        }))
+        .into_response(),
+        Err(_) => (
+            StatusCode::UNAUTHORIZED,
+            axum::Json(json!({"error": {"message": "Invalid or expired refresh token — sign in again.", "type": "invalid_request_error", "code": "invalid_refresh_token"}})),
         )
             .into_response(),
     }
@@ -136,11 +172,18 @@ pub async fn callback(State(app): State<AppState>, Query(q): Query<HashMap<Strin
                 return (StatusCode::FORBIDDEN, Html(denial_message(&app.cfg, &email))).into_response();
             }
             match app.keys.mint(&email) {
-                Ok(key) => Html(format!(
-                    "<h2>Welcome, {email}</h2><p>Your API key (shown once — store it now):</p>\
-                     <pre style='font-size:1.1em;background:#eee;padding:1em'>{key}</pre>\
-                     <p>Base URL: <code>{}/v1</code> &nbsp; (OpenAI-compatible)</p>",
-                    app.cfg.public_url
+                Ok(b) => Html(format!(
+                    "<h2>Welcome, {email}</h2>\
+                     <p>Your credentials (shown once — store them now). The access token expires; \
+                     use the refresh token at <code>POST {url}/auth/refresh</code> to get a new pair.</p>\
+                     <p>Access token:</p><pre style='font-size:1.1em;background:#eee;padding:1em'>{access}</pre>\
+                     <p>Refresh token:</p><pre style='font-size:1.1em;background:#eee;padding:1em'>{refresh}</pre>\
+                     <p>Access expires at (unix): <code>{exp}</code></p>\
+                     <p>Base URL: <code>{url}/v1</code> &nbsp; (OpenAI-compatible)</p>",
+                    access = b.access_token,
+                    refresh = b.refresh_token,
+                    exp = b.access_expires_at,
+                    url = app.cfg.public_url,
                 ))
                 .into_response(),
                 Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Html(format!("Key mint failed: {e}"))).into_response(),
@@ -263,8 +306,15 @@ pub async fn login_xai(cfg: &Config) -> anyhow::Result<()> {
     if !cfg.is_allowed(&email) {
         anyhow::bail!("{}", denial_message(cfg, &email));
     }
-    let key = KeyStore::new(crate::config::keys_file()).mint(&email)?;
+    let store = KeyStore::new(
+        crate::config::keys_file(),
+        cfg.auth.access_ttl_secs,
+        cfg.auth.refresh_ttl_secs,
+    );
+    let b = store.mint(&email)?;
     println!("SIGNED_IN: {email}");
-    println!("API_KEY: {key}");
+    println!("ACCESS_TOKEN: {}", b.access_token);
+    println!("REFRESH_TOKEN: {}", b.refresh_token);
+    println!("EXPIRES_AT: {}", b.access_expires_at);
     Ok(())
 }

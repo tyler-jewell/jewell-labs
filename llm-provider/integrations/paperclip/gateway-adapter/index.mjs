@@ -5,9 +5,14 @@
 // running Paperclip server via the adapter-plugin-store (see ../register-adapter.mjs).
 //
 // llm-provider trusts loopback (127.0.0.1), so on this Mac NO api key is needed. A key is
-// only required if you point baseUrl at the gateway remotely; set apiKey/apiKeyFile then.
+// only required if you point baseUrl at the gateway remotely.
+//
+// Remote auth uses SHORT-LIVED tokens (the gateway never issues a permanent key). Point
+// `credsFile` at a JSON bundle { access_token, refresh_token, expires_at }; this adapter
+// presents the access token and, when it is near expiry, rotates it via POST /auth/refresh and
+// writes the new bundle back. `apiKey`/`apiKeyFile` (static) still work for loopback/simple use.
 
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync, renameSync } from "node:fs";
 
 export const type = "gateway_openai";
 export const label = "LLM Provider (OpenAI-compatible, direct)";
@@ -25,7 +30,10 @@ Adapter: gateway_openai — call the local llm-provider directly (no intermediar
 Fields:
 - baseUrl (string, optional): OpenAI-compatible base URL. Default http://localhost:4141/v1
 - model (string, optional): model id from the gateway's /v1/models
-- apiKey / apiKeyFile (string, optional): bearer key — only needed for REMOTE (non-loopback) access
+- credsFile (string, optional): path to a JSON token bundle { access_token, refresh_token, expires_at }
+  for REMOTE access. The adapter presents the access token and auto-rotates it via /auth/refresh
+  near expiry, writing the new bundle back. Preferred over apiKeyFile (no permanent key).
+- apiKey / apiKeyFile (string, optional): static bearer — loopback/simple use only (back-compat)
 - systemPrompt (string, optional): system message prepended to the turn
 - maxTokens (number, optional): output cap (default 4096)
 - timeoutSec (number, optional): request timeout (default 180)
@@ -34,11 +42,47 @@ Fields:
 function cfgStr(v, d = "") { return typeof v === "string" && v ? v : d; }
 function cfgNum(v, d) { return typeof v === "number" && Number.isFinite(v) ? v : d; }
 
-function resolveApiKey(config) {
-  if (cfgStr(config.apiKey)) return config.apiKey;
+// gateway base is ".../v1"; the auth endpoints live at the origin root.
+function originOf(baseUrl) { return baseUrl.replace(/\/v1\/?$/, "").replace(/\/$/, ""); }
+
+// Resolve the bearer to present. Precedence: static apiKey > refreshing credsFile > static
+// apiKeyFile > none (loopback). Async because a stale bundle triggers a network refresh.
+async function resolveAccessToken(config, baseUrl) {
+  if (cfgStr(config.apiKey)) return config.apiKey;                       // static, back-compat
+  const credsFile = cfgStr(config.credsFile);
+  if (credsFile) return await accessFromBundle(credsFile, baseUrl);
   const file = cfgStr(config.apiKeyFile);
   if (file) { try { return readFileSync(file, "utf8").trim(); } catch { return ""; } }
   return ""; // loopback needs none
+}
+
+// Read the token bundle; if the access token is within 60s of expiry, rotate it via
+// /auth/refresh and persist the new bundle atomically. Falls back to the current access token
+// on any error so a transient refresh failure doesn't hard-fail a run.
+// ponytail: no cross-process lock — concurrent runs could race a rotation at single-instance
+// scale; acceptable here (add a lockfile if heartbeats overlap and 401s appear).
+async function accessFromBundle(credsFile, baseUrl) {
+  let bundle;
+  try { bundle = JSON.parse(readFileSync(credsFile, "utf8")); } catch { return ""; }
+  const nowSecs = Date.now() / 1000;
+  const exp = typeof bundle.expires_at === "number" ? bundle.expires_at : 0;
+  if (bundle.access_token && exp > nowSecs + 60) return bundle.access_token; // still fresh
+  if (!bundle.refresh_token) return bundle.access_token || "";
+  try {
+    const resp = await fetch(`${originOf(baseUrl)}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: bundle.refresh_token }),
+    });
+    if (!resp.ok) return bundle.access_token || "";
+    const next = await resp.json();
+    if (!next.access_token || !next.refresh_token) return bundle.access_token || "";
+    const out = { access_token: next.access_token, refresh_token: next.refresh_token, expires_at: next.expires_at };
+    const tmp = `${credsFile}.tmp`;
+    writeFileSync(tmp, JSON.stringify(out), { mode: 0o600 });
+    renameSync(tmp, credsFile);
+    return out.access_token;
+  } catch { return bundle.access_token || ""; }
 }
 
 export function buildMessages(agent = {}, context = {}, config = {}) {
@@ -61,7 +105,7 @@ export async function execute(ctx) {
   const { agent = {}, config = {}, context = {}, onLog = () => {}, onMeta } = ctx || {};
   const baseUrl = cfgStr(config.baseUrl, "http://localhost:4141/v1").replace(/\/$/, "");
   const model = cfgStr(config.model, "grok-4.20-0309-non-reasoning");
-  const apiKey = resolveApiKey(config);
+  const apiKey = await resolveAccessToken(config, baseUrl);
   const maxTokens = cfgNum(config.maxTokens, 4096);
   const timeoutSec = cfgNum(config.timeoutSec, 180);
   const messages = buildMessages(agent, context, config);
@@ -128,10 +172,10 @@ export async function testEnvironment(ctx) {
   const config = ctx?.config || {};
   const checks = [];
   const baseUrl = cfgStr(config.baseUrl, "http://localhost:4141/v1").replace(/\/$/, "");
-  const apiKey = resolveApiKey(config);
+  const apiKey = await resolveAccessToken(config, baseUrl);
   checks.push({
     code: "gateway_auth_mode", level: "info",
-    message: apiKey ? "Using a bearer key." : "Loopback (no key) — llm-provider trusts 127.0.0.1.",
+    message: apiKey ? "Using a bearer access token." : "Loopback (no key) — llm-provider trusts 127.0.0.1.",
   });
   try {
     const ctrl = new AbortController();

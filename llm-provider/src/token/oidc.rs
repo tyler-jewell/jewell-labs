@@ -6,7 +6,7 @@ use std::path::Path;
 use serde_json::{json, Value};
 use tokio::sync::Mutex;
 
-use super::now;
+use super::{is_stale, now};
 
 fn parse_iso(s: &str) -> f64 {
     chrono::DateTime::parse_from_rfc3339(s)
@@ -33,8 +33,9 @@ pub async fn grok_token(
         .and_then(|o| o.keys().next().cloned())
         .ok_or_else(|| anyhow::anyhow!("empty grok auth.json"))?;
     let entry = &data[&slot];
+    // a missing/unparseable expires_at parses to 0.0 => is_stale => forced refresh.
     let exp = parse_iso(entry["expires_at"].as_str().unwrap_or(""));
-    if exp - 120.0 > now() {
+    if !is_stale(exp, 120.0) {
         return Ok(entry["key"].as_str().unwrap_or_default().to_string());
     }
     let issuer = entry["oidc_issuer"]

@@ -1,3 +1,4 @@
+# DISABLED — Hermes is not part of the stack (Paperclip + llm-provider only). Do not re-enable.
 # SSoT harness config for the Hermes CLI vendor.
 # Path: evals/vendors/hermes/vendor.toml
 #
@@ -7,7 +8,7 @@
 
 id = "hermes"
 name = "Hermes Agent"
-enabled = true
+enabled = false
 kind = "cli"
 config_ssot = "evals/vendors/hermes/vendor.toml"
 capabilities = [

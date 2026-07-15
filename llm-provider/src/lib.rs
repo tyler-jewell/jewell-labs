@@ -7,6 +7,7 @@
 pub mod app;
 pub mod config;
 pub mod identity;
+pub mod interactive;
 pub mod openai;
 pub mod providers;
 pub mod registry;

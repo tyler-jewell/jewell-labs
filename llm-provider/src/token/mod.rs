@@ -19,6 +19,14 @@ pub fn now() -> f64 {
         .as_secs_f64()
 }
 
+/// A token with unix expiry `exp` is stale if it is within `skew` seconds of expiring —
+/// or already expired, or missing (`exp == 0`). A missing/zero expiry is always stale, so an
+/// upstream that omits an expiry is refreshed every time rather than trusted indefinitely.
+/// This is the single place both the Claude (Keychain) and grok (OIDC) sources decide to refresh.
+pub fn is_stale(exp: f64, skew: f64) -> bool {
+    exp <= now() + skew
+}
+
 #[derive(Default)]
 pub struct Cache {
     pub tok: Option<String>,
@@ -60,5 +68,18 @@ impl TokenSource {
             }
             TokenSource::None => Ok(None),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stale_when_missing_expired_or_within_skew() {
+        assert!(is_stale(0.0, 60.0), "missing/zero expiry is always stale");
+        assert!(is_stale(now() - 100.0, 60.0), "past expiry is stale");
+        assert!(is_stale(now() + 30.0, 60.0), "within skew is stale");
+        assert!(!is_stale(now() + 3600.0, 60.0), "far-future expiry is fresh");
     }
 }

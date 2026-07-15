@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
-use super::{now, Cache};
+use super::{is_stale, now, Cache};
 use crate::CLAUDE_OAUTH_CLIENT_ID;
 
 async fn keychain_read() -> anyhow::Result<(Value, String)> {
@@ -54,16 +54,17 @@ async fn keychain_write(creds: &Value, account: &str) -> anyhow::Result<()> {
 pub async fn claude_token(http: &reqwest::Client, cache: &Mutex<Cache>) -> anyhow::Result<String> {
     let mut cache = cache.lock().await;
     if let Some(tok) = &cache.tok {
-        if now() < cache.exp - 60.0 {
+        if !is_stale(cache.exp, 60.0) {
             return Ok(tok.clone());
         }
     }
     let (mut creds, account) = keychain_read().await?;
     let oauth = &creds["claudeAiOauth"];
     let mut access = oauth["accessToken"].as_str().unwrap_or_default().to_string();
+    // expiresAt is epoch millis; a missing/zero expiry stays 0.0 => is_stale => forced refresh.
     let mut exp = oauth["expiresAt"].as_f64().unwrap_or(0.0) / 1000.0;
 
-    if exp - 60.0 < now() {
+    if is_stale(exp, 60.0) {
         let r = http
             .post("https://console.anthropic.com/v1/oauth/token")
             .json(&json!({

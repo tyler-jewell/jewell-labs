@@ -5,8 +5,10 @@
 // way a real Paperclip run drives an adapter. It also loads the adapter through
 // Paperclip's OWN plugin loader to prove the package is server-registerable.
 //
-// The gateway trusts loopback, so this test needs NO api key. (Remote 401 is covered by
-// the Rust unit test identity::is_authorized and the oauth_integration deny path.)
+// The gateway runs trust_loopback=false (exposed via tunnel), so a key IS required. The key is
+// resolved the same way the adapter resolves it: from the creds bundle's access_token
+// (credsFile), falling back to a static apiKeyFile. (Remote 401 is covered by the Rust unit
+// test identity::is_authorized and the oauth_integration deny path.)
 //
 // Run:  node test-gateway-direct.mjs      Exit: 0 all pass, 1 any failure.
 
@@ -20,10 +22,18 @@ const DIR = dirname(fileURLToPath(import.meta.url));
 const GATEWAY = process.env.GATEWAY_URL || "http://localhost:4141";
 const PKG_DIR = join(DIR, "gateway-adapter");
 const CFG = JSON.parse(readFileSync(join(DIR, "adapter-config.json"), "utf8"));
-// GATEWAY_URL lets a run target an alternate port. The gateway requires a key
-// (trust_loopback=false), resolved by the adapter from apiKeyFile in the config.
-const baseConfig = { ...CFG.adapterConfig, baseUrl: `${GATEWAY}/v1` };
-const KEY = readFileSync(CFG.adapterConfig.apiKeyFile, "utf8").trim();
+// GATEWAY_URL lets a run target an alternate port. Resolve the bearer the same way the adapter
+// does — prefer the creds bundle's access_token, fall back to a static apiKeyFile — and never
+// crash if neither exists on disk (KEY stays "" and the key checks report the failure).
+const AC = CFG.adapterConfig;
+const baseConfig = { ...AC, baseUrl: `${GATEWAY}/v1` };
+const KEY = (() => {
+  try {
+    if (AC.credsFile) return JSON.parse(readFileSync(AC.credsFile, "utf8")).access_token || "";
+    if (AC.apiKeyFile) return readFileSync(AC.apiKeyFile, "utf8").trim();
+  } catch { /* no creds on disk */ }
+  return "";
+})();
 
 const serverDist = execSync(
   "ls -d ~/.npm/_npx/*/node_modules/@paperclipai/server/dist 2>/dev/null | head -1",

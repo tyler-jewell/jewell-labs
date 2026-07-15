@@ -7,3 +7,4 @@
 tuning/results/*.csv
 tuning/results/*.log
 /.gateway-key
+/.gateway-creds.json

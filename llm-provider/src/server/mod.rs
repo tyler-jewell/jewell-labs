@@ -26,6 +26,7 @@ pub fn router(app: AppState) -> Router {
         .route("/login", get(oauth_google::login))
         .route("/oauth/callback", get(oauth_google::callback))
         .route("/auth/google", post(oauth_google::google_token))
+        .route("/auth/refresh", post(oauth_google::refresh))
         .nest("/v1", v1)
         .with_state(app)
 }

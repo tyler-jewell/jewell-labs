@@ -68,5 +68,6 @@ JEWELL_ALLOW_EVAL_PINS=1 cargo run --bin rust-agent
 ## Defaults
 
 - Enabled vendors are the default harness list (sorted by id).
-- Filter with `--harnesses jewell,hermes`.
+- Filter with `--harnesses jewell` (or a comma list of **enabled** vendors).
 - Disable a vendor with `enabled = false` without deleting it.
+- **Hermes is not used** — keep `evals/vendors/hermes` disabled; do not re-enable or expand it.

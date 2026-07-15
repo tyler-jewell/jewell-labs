@@ -10,7 +10,7 @@ allowlist. Rust (axum + reqwest), single static binary.
 Claude and Grok are reached through their **OAuth subscription tokens** (Claude Code's
 Keychain token; the grok CLI's OIDC token) — not metered API keys — so this box serves those
 models at subscription cost. Local models run on llama.cpp/ollama. Everything speaks the
-OpenAI wire format, so any OpenAI-compatible client (Paperclip, Hermes, SDKs) just points at
+OpenAI wire format, so any OpenAI-compatible client (Paperclip, SDKs) just points at
 `http://localhost:4141/v1`.
 
 ## Architecture
@@ -53,7 +53,7 @@ curl -s -X POST localhost:4141/auth/google -H content-type:application/json \
 
 Loopback callers need **no key** — *unless* `auth.trust_loopback = false`, which is the
 correct setting when the gateway is exposed (a reverse SSH tunnel makes remote traffic look
-like loopback), in which case everyone needs a key. See the `paperclip-integration` skill for
+like loopback), in which case everyone needs a key. See the `paperclip-admin` skill for
 the local / LAN / remote-VPS setups and the tunnel.
 
 ## Config
@@ -93,8 +93,8 @@ pure `identity::is_authorized` unit test.
 
 ## Clients
 
-- **Paperclip:** `integrations/paperclip/` — a custom `gateway_openai` external adapter that
-  calls this gateway directly (no hermes). Register it with `register-adapter.mjs`, then
-  `node integrations/paperclip/test-gateway-direct.mjs` re-verifies the whole path.
-- **Hermes:** point its `config.yaml` `base_url` at `http://localhost:4141/v1` (no key needed
-  on loopback).
+- **Paperclip (canonical):** `integrations/paperclip/` — custom `gateway_openai` external
+  adapter that calls this gateway directly over the OpenAI wire. Register with
+  `register-adapter.mjs`, then `node integrations/paperclip/test-gateway-direct.mjs`.
+  Production: Paperclip on Hostinger VPS + reverse tunnel + OAuth/minted key. **Do not use
+  Hermes** (`hermes_local` / `hermes_gateway`) as a client path.

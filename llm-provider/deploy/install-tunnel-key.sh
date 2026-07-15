@@ -1,36 +1,29 @@
 #!/usr/bin/env bash
 # One-time: install this Mac's SSH public key on the VPS using the VPS password, so the
 # reverse tunnel can authenticate with the key (no password ever again). The password is
-# read with no echo, passed to `expect` via the environment, and NEVER written to disk or
-# printed. After this succeeds, everything is key-based.
+# read with no echo into a 0600 temp file, fed to `llm-provider expect` (a pure-Rust PTY
+# driver — no expect(1)), and shredded. After this succeeds, everything is key-based.
 #
 # Run it in a real terminal (it prompts):   deploy/install-tunnel-key.sh
 set -euo pipefail
 
 VPS="${VPS:-root@2.25.132.76}"
 PUB="$HOME/.ssh/id_ed25519.pub"
+BIN="${LLM_PROVIDER_BIN:-$HOME/Apps/jewell-labs/llm-provider/target/release/llm-provider}"
 [ -f "$PUB" ] || { echo "no $PUB — run: ssh-keygen -t ed25519 -N '' -f ~/.ssh/id_ed25519"; exit 1; }
-command -v expect >/dev/null || { echo "expect not found"; exit 1; }
+[ -x "$BIN" ] || { echo "no $BIN — run: cargo build --release"; exit 1; }
 
+pwfile="$(mktemp)"; chmod 600 "$pwfile"
+trap 'rm -f "$pwfile"' EXIT
 printf 'VPS password for %s (from your Passwords app; input hidden): ' "$VPS"
-read -rs TUNNEL_PW; echo
-[ -n "$TUNNEL_PW" ] || { echo "empty password, aborting"; exit 1; }
+read -rs pw; echo
+[ -n "$pw" ] || { echo "empty password, aborting"; exit 1; }
+printf '%s' "$pw" > "$pwfile"; unset pw
 
-# Force password auth for the install connection; feed the password to ssh-copy-id via expect.
-TUNNEL_PW="$TUNNEL_PW" VPS="$VPS" PUB="$PUB" expect <<'EXP'
-set timeout 40
-set pw  $env(TUNNEL_PW)
-set vps $env(VPS)
-set pub $env(PUB)
-spawn ssh-copy-id -o StrictHostKeyChecking=accept-new -o PubkeyAuthentication=no -i $pub $vps
-expect {
-    -nocase -re {password:} { send "$pw\r"; exp_continue }
-    -re {already exist|Number of key\(s\) added|skipped} { }
-    timeout { puts "\nTIMED OUT talking to $vps"; exit 2 }
-    eof
-}
-EXP
-unset TUNNEL_PW
+# Force password auth for the install connection; the PTY driver answers the prompt.
+printf 'expect [Pp]assword:\nsecret %s\nexpect Number of key|already exist|denied\n' "$pwfile" \
+  | "$BIN" expect --timeout 40 -- \
+      ssh-copy-id -o StrictHostKeyChecking=accept-new -o PubkeyAuthentication=no -i "$PUB" "$VPS"
 
 echo "verifying key auth (no password should be asked)..."
 if ssh -o BatchMode=yes -o ConnectTimeout=10 "$VPS" 'echo KEY_OK; uname -sm'; then

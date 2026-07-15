@@ -43,6 +43,10 @@ pub struct AuthConfig {
     /// Set FALSE when exposing the gateway publicly (e.g. via a Cloudflare Tunnel), because
     /// a local tunnel forwards from localhost and would otherwise let the internet in keyless.
     pub trust_loopback: bool,
+    /// Lifetime of a minted access token (seconds). Short — clients refresh before it lapses.
+    pub access_ttl_secs: u64,
+    /// Lifetime of a refresh token (seconds). Rotates on every use, so no token is permanent.
+    pub refresh_ttl_secs: u64,
 }
 
 /// Kind-tagged provider config. Each provider constructor sees only its own variant —
@@ -108,6 +112,8 @@ impl Default for AuthConfig {
             google_client_id: String::new(),
             google_client_secret: String::new(),
             trust_loopback: true,
+            access_ttl_secs: 3_600,        // 1 hour
+            refresh_ttl_secs: 2_592_000,   // 30 days, rotating
         }
     }
 }

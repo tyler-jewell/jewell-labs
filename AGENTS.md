@@ -4,13 +4,22 @@ This repository is a workspace for agent harnesses that evaluate language models
 
 Prefer minimal tooling. Prefer local inference. Do not introduce Docker-heavy eval stacks (NeMo Evaluator, etc.) or cloud-only judges unless the user explicitly asks.
 
+### Stack (orchestration + models)
+
+**Canonical production stack — do not substitute:**
+
+| Layer | What |
+| --- | --- |
+| **Control plane** | Paperclip (self-hosted on Hostinger VPS) |
+| **Models** | In-house **llm-provider** on this Mac (`:4141`), OAuth-gated to the allowlist; Paperclip reaches it via reverse tunnel + `gateway_openai` adapter |
+| **Not used** | **Hermes** — do not install, run, configure, expand, or route agents through Hermes (`hermes_local`, `hermes_gateway`, `~/hermes-local`, hermes eval vendors, etc.) |
+
 ### No Python in Jewell agent or Jewell evals
 
 **Hard rule for this monorepo:**
 
-- Do **not** add, restore, or introduce first-party **Python** as implementation language for the Jewell agent (`rust-agent/`) or Jewell-owned evals (`evals/catalog/`, `evals/datasets/`, `evals/harness_compare/` except hermes vendor, `tools/`, etc.).
+- Do **not** add, restore, or introduce first-party **Python** as implementation language for the Jewell agent (`rust-agent/`) or Jewell-owned evals (`evals/catalog/`, `evals/datasets/`, `evals/harness_compare/`, `tools/`, etc.).
 - Forbidden: new `.py` modules, Python harness CLIs, Python scoring libraries, or Python rewrites of agent/eval logic under first-party paths.
-- **Sole exception:** vendored Hermes under `evals/harness_compare/vendor/hermes-agent/` (gitignored install tree). That vendor is third-party; do not “clean” or rewrite it into first-party Python.
 - **Allowed (not first-party harness code):** subject workspaces for coding datasets may contain `solution.py` / other Python **artifacts under test**. Optional host-side `python3` may execute those dataset unit tests against the agent’s workspace file. That is grading *subject* code, not Jewell implementation source.
 - Canonical eval entry points are **Rust** (`cargo run --bin eval_catalog`, `eval_compare`, `eval_introspection`) and **curl** against local `llama-server`. Prefer pure Rust graders (regex, file equality, structural checks) when no external subject-language runtime is required.
 
@@ -155,21 +164,21 @@ SCORE: <0|1>
 
 For multi-item work in **this** monorepo, prefer the Rust bins (no first-party Python). For a single closed-form item, the curl path above is enough.
 
-**Catalog sample (public sources, multi-vendor):**
+**Catalog sample (public sources, Jewell harness):**
 
 ```bash
 cd rust-agent
 cargo run -q --bin eval_catalog -- --list-sources
 cargo run -q --bin eval_catalog -- --sample-n 1 --seed 42
-cargo run -q --bin eval_catalog -- --harnesses jewell,hermes --sample-n 5
+cargo run -q --bin eval_catalog -- --harnesses jewell --sample-n 5
 ```
 
-**Harness compare (dry / jewell / hermes on shared local tasks):**
+**Harness compare (dry / jewell on shared local tasks):**
 
 ```bash
 cd rust-agent
 cargo run -q --bin eval_compare -- --harnesses dry --tasks all
-cargo run -q --bin eval_compare -- --harnesses dry,jewell,hermes --tasks coding,closed_form,agent_os
+cargo run -q --bin eval_compare -- --harnesses dry,jewell --tasks coding,closed_form,agent_os
 ```
 
 **Core team gate:**
@@ -215,7 +224,8 @@ When implementing or running evals, agents MUST:
 
 6. **Not** pull in heavy frameworks unless the user requests parity with a public leaderboard.
 7. **Not** send prompts or answers to external judge APIs by default; local llama.cpp is the default judge.
-8. **Not** introduce first-party Python into the Jewell agent or Jewell evals (see ban at top). Hermes vendor is the only allowed Python tree.
+8. **Not** introduce first-party Python into the Jewell agent or Jewell evals (see ban at top).
+9. **Not** use Hermes for orchestration, eval harnesses, or model routing (see stack at top).
 
 ### Local JSONL dataset (custom items)
 
@@ -246,7 +256,8 @@ This is enough for the “simplest evaluation dataset item” without HuggingFac
 - [ ] Start validation with `--n_cases 1` (or one JSONL row) before full sweeps
 - [ ] Use `-np` and multi-server only when batch size justifies it
 - [ ] Resume from saved JSON rather than re-running completed items
-- [ ] No new first-party `.py` under agent/evals (hermes vendor only)
+- [ ] No new first-party `.py` under agent/evals
+- [ ] No Hermes harnesses or Hermes agent runtime
 
 ### What “done” looks like for a smoke eval
 
@@ -291,13 +302,13 @@ cd rust-agent
 cargo run -q --bin eval_catalog -- --list-sources
 cargo run -q --bin eval_catalog -- --list-vendors
 cargo run -q --bin eval_catalog -- --sample-n 20 --seed 42
-cargo run -q --bin eval_catalog -- --harnesses jewell,hermes --sample-n 5
+cargo run -q --bin eval_catalog -- --harnesses jewell --sample-n 5
 ```
 
 **Multi-vendor catalog (default path)**
 
 - Shared model pin: `evals/model.toml` (override with `EVAL_MODEL_BASE_URL` / `EVAL_MODEL`). All vendors use this endpoint — apples-to-apples.
-- Vendors: drop-in `evals/vendors/<id>/vendor.toml`. Empty `--harnesses` runs every `enabled = true` vendor.
+- Vendors: drop-in `evals/vendors/<id>/vendor.toml`. Empty `--harnesses` runs every `enabled = true` vendor. **Do not enable or use a Hermes vendor.**
 - Add a CLI vendor by writing one TOML file (no Rust edits). See `evals/vendors/README.md`.
 - Sandbox-only items are excluded from sampling unless `--include-sandbox` is set.
 

@@ -23,6 +23,11 @@ pub struct AppState {
 impl AppState {
     pub fn new(cfg: Config) -> Self {
         let registry = Registry::from_config(&cfg);
+        let keys = KeyStore::new(
+            config::keys_file(),
+            cfg.auth.access_ttl_secs,
+            cfg.auth.refresh_ttl_secs,
+        );
         AppState {
             cfg: Arc::new(cfg),
             http: reqwest::Client::builder()
@@ -30,7 +35,7 @@ impl AppState {
                 .build()
                 .unwrap(),
             registry: Arc::new(registry),
-            keys: Arc::new(KeyStore::new(config::keys_file())),
+            keys: Arc::new(keys),
             oauth_states: Arc::new(Mutex::new(HashMap::new())),
         }
     }
