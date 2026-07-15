@@ -1,0 +1,11 @@
+{
+  "name": "paperclip-gateway-openai-adapter",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Paperclip external adapter that talks directly to the local llm-gateway's OpenAI-compatible endpoint (no hermes).",
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "main": "index.mjs"
+}

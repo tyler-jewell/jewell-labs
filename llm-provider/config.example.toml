@@ -1,0 +1,54 @@
+# llm-provider config — copy to config.toml. Every field has a default (the binary runs
+# with no file at all), so set only what you want to change.
+
+port = 4141
+# public_url = "http://localhost:4141"   # defaults to http://localhost:{port}
+
+[auth]
+allowed_emails = ["tyler.p.jewell@gmail.com"]
+# admin_contact = ""                      # defaults to the first allowed email
+# google_client_id = ""                   # only needed for the browser /login flow;
+# google_client_secret = ""               # headless POST /auth/google needs neither
+
+# --- providers: routed in order; put prefix providers (claude, grok) before local ---
+
+[[providers]]
+kind = "claude"
+prefix = "claude"
+models = ["claude-opus-4-8", "claude-sonnet-5", "claude-haiku-4-5"]
+
+[[providers]]
+kind = "grok"
+prefix = "grok"
+base_url = "https://api.x.ai/v1"
+
+[[providers]]
+kind = "local"
+name = "llama-cpp"
+base_url = "http://127.0.0.1:8080/v1"
+
+[[providers]]
+kind = "local"
+name = "ollama"
+base_url = "http://127.0.0.1:11434/v1"
+
+# --- tuned local llama.cpp runtime (launch-local.sh reads these) ---
+# Values below are a research-grounded baseline for a 32GB M1 Max; run tuning/doe.sh and
+# the tune-local-llm skill to replace them with the measured DoE winner.
+
+[[local_runtime.profiles]]
+name = "qwen3-4b"
+model = "/Users/studio/.llama/models/Qwen3-4B-Instruct-2507-Q8_0.gguf"
+port = 8080
+flags = [
+  "-fa", "on",          # flash attention: no downside on Metal, required for KV-quant
+  "-cb",                # continuous batching
+  "-np", "8",           # parallel slots (concurrency)
+  "-b", "2048",         # logical prefill batch
+  "-ub", "1024",        # physical micro-batch — primary prefill lever on Apple Silicon
+  "-ngl", "99",         # all layers on GPU
+  "-ctk", "q8_0", "-ctv", "q8_0",   # quantized KV cache (halves KV memory)
+  "--cache-reuse", "256",           # reuse identical prompt prefixes (agent loops)
+  "-c", "32768",        # context per the slot budget
+  "-a", "qwen3-4b",     # clean model id (else clients see the full GGUF path)
+]

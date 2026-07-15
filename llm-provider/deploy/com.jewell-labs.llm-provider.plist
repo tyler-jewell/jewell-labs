@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- launchd agent for llm-provider. Install:
+       cp deploy/com.jewell-labs.llm-provider.plist ~/Library/LaunchAgents/
+       launchctl unload ~/Library/LaunchAgents/com.studio.llm-gateway.plist   # stop the OLD gateway
+       launchctl load  ~/Library/LaunchAgents/com.jewell-labs.llm-provider.plist
+     Both bind :4141, so the old one MUST be unloaded first. -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.jewell-labs.llm-provider</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/studio/Apps/jewell-labs/llm-provider/target/release/llm-provider</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>LLM_PROVIDER_DIR</key>
+        <string>/Users/studio/Apps/jewell-labs/llm-provider</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/Users/studio/Apps/jewell-labs/llm-provider</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/studio/Apps/jewell-labs/llm-provider/provider.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/studio/Apps/jewell-labs/llm-provider/provider.log</string>
+</dict>
+</plist>

@@ -1,0 +1,27 @@
+# DoE factor grid — documentation for what tuning/doe.sh sweeps and why. The script reads
+# these as env-var overrides (UBATCH/BATCH/KV/NPL); this file records the rationale.
+#
+# Hardware envelope: Apple M1 Max, 32 GB unified, 24 GPU cores. Memory is the binding
+# constraint (the compressor is already ~8 GB under load), so "max concurrent models" is
+# memory-bound, not compute-bound. Watch for swap/compressor spill — it tanks tokens/s.
+
+[always_on]
+flash_attn = "on"          # -fa on: no downside on Metal; REQUIRED for KV quantization
+cont_batching = true       # -cb: merges decode steps across requests (the throughput win)
+# Single well-tuned llama-server beats multi-process on a shared GPU.
+
+[factors.ubatch]           # -ub: physical micro-batch = one Metal kernel dispatch
+levels = [512, 1024, 2048] # PRIMARY prefill lever on Apple Silicon; must divide batch
+[factors.batch]            # -b: logical prefill batch (prompt tokens per forward pass)
+levels = [2048]            # widen (4096/8192) only if -np is high and prefill-bound
+[factors.kv]               # -ctk/-ctv: KV cache quant. q8_0 ~halves KV memory (needs -fa)
+levels = ["none", "q8_0"]
+[factors.npl]              # -np at bench time: concurrent request load
+levels = [1, 2, 4, 8, 16]  # find the knee — aggregate tok/s stops rising, latency climbs
+
+[notes]
+# - Raising -np without more prefill tokens/pass just spreads throughput thinner.
+# - -ncmoe N offloads MoE layers to CPU: the lever for the 35B-A3B on 32 GB (add a run).
+# - --cache-reuse 256 helps agent loops with stable system prompts (not a bench factor).
+# - Avoid --swa-full: big KV memory cost for almost no benefit.
+# - iogpu.wired_limit_mb can raise the GPU memory ceiling if you push large models.

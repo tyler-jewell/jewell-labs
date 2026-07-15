@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- launchd agent: the tuned local llama.cpp server. Reads the model/port/flags from
+     config.toml [[local_runtime.profiles]] via launch-local.sh, so config stays the single
+     source of truth. After editing the profile (e.g. from a DoE winner), reload:
+       launchctl unload ~/Library/LaunchAgents/com.jewell-labs.llama-server.plist
+       launchctl load  ~/Library/LaunchAgents/com.jewell-labs.llama-server.plist
+     PATH must include /opt/homebrew/bin (llama-server + a python3 with tomllib). -->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.jewell-labs.llama-server</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/studio/Apps/jewell-labs/llm-provider/launch-local.sh</string>
+        <string>qwen3-4b</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/bin:/bin</string>
+        <key>LLM_PROVIDER_DIR</key>
+        <string>/Users/studio/Apps/jewell-labs/llm-provider</string>
+    </dict>
+    <key>WorkingDirectory</key>
+    <string>/Users/studio/Apps/jewell-labs/llm-provider</string>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/studio/Apps/jewell-labs/llm-provider/llama-server.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/studio/Apps/jewell-labs/llm-provider/llama-server.log</string>
+</dict>
+</plist>

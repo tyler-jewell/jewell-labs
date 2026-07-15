@@ -1,0 +1,8 @@
+/target
+# secrets + local state — never commit
+/keys.json
+/config.toml
+*.tmp
+*.log
+tuning/results/*.csv
+tuning/results/*.log
