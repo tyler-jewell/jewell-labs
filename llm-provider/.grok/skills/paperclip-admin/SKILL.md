@@ -231,7 +231,7 @@ Paperclip is open-source and moves fast; do not trust this snapshot for a mutati
 ## SendBlue messaging (any agent)
 
 Messaging is **agent-native** (company skill + CLI/REST on the host) — not a
-long-running Rust messenger. Guide: `docs/SENDBLUE_PAPERCLIP.md`.
+long-running Rust messenger.
 
 **Attach SSoT:** company skill `company/$PAPERCLIP_COMPANY/sendblue` (from monorepo
 `skills/sendblue/SKILL.md`). Do **not** attach GitHub-imported `sendblue-cli` /
