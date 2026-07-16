@@ -1,0 +1,25 @@
+import type { KnipConfig } from "knip";
+
+/**
+ * Dead-code / unused dependency analysis.
+ * Entry points match Paperclip package contract (worker, manifest, UI).
+ * Public library exports from index are intentionally not required to be
+ * used inside this package (consumed by hosts / tests via re-export).
+ */
+const config: KnipConfig = {
+  entry: [
+    "src/worker.ts",
+    "src/manifest.ts",
+    "src/ui/index.tsx",
+    "scripts/*.{js,mjs}",
+  ],
+  project: ["src/**/*.{ts,tsx}", "scripts/**/*.{js,mjs}"],
+  // Peers resolved by Paperclip host; listed so builds typecheck.
+  ignoreDependencies: ["react", "react-dom"],
+  vitest: {
+    config: ["vitest.config.ts"],
+    entry: ["tests/**/*.{ts,tsx}"],
+  },
+};
+
+export default config;

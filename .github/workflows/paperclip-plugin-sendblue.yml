@@ -1,0 +1,33 @@
+name: paperclip-plugin-sendblue
+
+on:
+  push:
+    paths:
+      - "plugins/paperclip-plugin-sendblue/**"
+      - ".github/workflows/paperclip-plugin-sendblue.yml"
+  pull_request:
+    paths:
+      - "plugins/paperclip-plugin-sendblue/**"
+      - ".github/workflows/paperclip-plugin-sendblue.yml"
+  workflow_dispatch:
+
+defaults:
+  run:
+    working-directory: plugins/paperclip-plugin-sendblue
+
+jobs:
+  check:
+    name: lint · typecheck · deadcode · test · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: plugins/paperclip-plugin-sendblue/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Full quality gate
+        run: npm run check
