@@ -20,7 +20,7 @@ Source of truth for operating **Jewell Labs** on a self-hosted **Paperclip** con
 | Claude Code CLI | Authenticated (claude.ai Max) |
 | Agent concurrency | **maxConcurrentRuns=1** (VPS is 3.8 GB — higher values OOM/lock SSH) |
 | llm-provider / tunnel | **Not** configured yet |
-| SendBlue plugin | **In-repo only** — `plugins/paperclip-plugin-sendblue` (60 unit tests + build green; **not** installed on VPS yet) |
+| SendBlue plugin | **Installed (local-path)** — key `jewell-labs.sendblue` status **ready** on live Paperclip (no npm publish) |
 
 **Note:** GitHub `main` currently has the *published* repo (history-agents harness experiments, commit `9fdd074`). Local Mac working tree after the wipe may differ until you push this README.
 
@@ -259,19 +259,147 @@ ssh -t root@2.25.132.76 \
 
 ---
 
-## SendBlue plugin (in-repo)
+## SendBlue plugin (local-path install — no npm)
 
 Package: [`plugins/paperclip-plugin-sendblue`](./plugins/paperclip-plugin-sendblue) (`@jewell-labs/paperclip-plugin-sendblue`).
 
 | | |
 | --- | --- |
-| **Plugin id** | `jewell-labs.sendblue` |
-| **Dev** | `cd plugins/paperclip-plugin-sendblue && npm install && npm test && npm run build` |
-| **Suite** | `npm run check` → version · lint · typecheck · deadcode · 68 tests · build |
-| **Live Paperclip** | **Not installed** until we deliberately promote it |
-| **Release** | `npm run release -- patch` then `npm publish` — consumers update via npm `packageName` |
+| **Plugin key** | `jewell-labs.sendblue` |
+| **Install method** | **Core local-path only** (`isLocalPath: true`) — **not** the dashboard npm dialog, **not** npm publish |
+| **Staged path (host)** | `/docker/paperclip-t8tg/data/plugins/paperclip-plugin-sendblue` |
+| **Staged path (container)** | `/paperclip/plugins/paperclip-plugin-sendblue` |
+| **Live status** | **ready** / healthy on Hostinger Paperclip (2026-07-16) |
+| **Dev suite** | `cd plugins/paperclip-plugin-sendblue && npm run check` |
 
-See the package [README](./plugins/paperclip-plugin-sendblue/README.md) for config, tools, webhooks, and versioning.
+### Why not the dashboard “npm Package Name” dialog?
+
+That UI only accepts registry packages. We deliberately **do not** publish this package to npm. Paperclip’s core CLI/API supports local absolute paths — that is the supported non-npm path.
+
+### Board auth (required)
+
+Instance is `deploymentMode: authenticated`. Plugin install needs board access.
+
+1. Sign in with Hostinger bootstrap admin (`ADMIN_EMAIL` / `ADMIN_PASSWORD` in container env):
+
+```bash
+# From inside the Paperclip container. Origin MUST match PAPERCLIP_PUBLIC_URL
+# (on this host: http://paperclip-t8tg.srv1829398.hstgr.cloud — not https, not localhost).
+curl -sS -c /tmp/pc.ck -b /tmp/pc.ck \
+  -H "Content-Type: application/json" \
+  -H "Origin: http://paperclip-t8tg.srv1829398.hstgr.cloud" \
+  -X POST http://127.0.0.1:3100/api/auth/sign-in/email \
+  --data "{\"email\":\"$ADMIN_EMAIL\",\"password\":\"$ADMIN_PASSWORD\"}"
+```
+
+2. Mint a board API key (store **only** on the instance, never in git):
+
+```bash
+curl -sS -b /tmp/pc.ck \
+  -H "Content-Type: application/json" \
+  -H "Origin: http://paperclip-t8tg.srv1829398.hstgr.cloud" \
+  -X POST http://127.0.0.1:3100/api/board-api-keys \
+  --data '{"name":"sendblue-ops","expiresAt":null}'
+# Save .token → /paperclip/instances/default/secrets/board-api-key-sendblue-ops (chmod 600)
+```
+
+### Stage + install (repeatable)
+
+On a build machine:
+
+```bash
+cd plugins/paperclip-plugin-sendblue
+npm run check   # lint, typecheck, deadcode, test, build → dist/
+```
+
+On the VPS (from monorepo checkout or rsync of the package):
+
+```bash
+# rsync package (exclude node_modules) into the data volume
+rsync -az --delete --exclude node_modules --exclude .git \
+  ./plugins/paperclip-plugin-sendblue/ \
+  root@2.25.132.76:/docker/paperclip-t8tg/data/plugins/paperclip-plugin-sendblue/
+
+# Or run the wrapper (on the VPS host):
+# bash plugins/paperclip-plugin-sendblue/scripts/stage-and-install.sh /path/to/package
+```
+
+Inside the container — **critical**: `NODE_ENV=production` skips installs unless SDK is a real `dependencies` entry. Install runtime deps, then local-path install:
+
+```bash
+docker exec -u node -e HOME=/tmp -e NODE_ENV=development paperclip-t8tg-paperclip-1 \
+  bash -c 'cd /paperclip/plugins/paperclip-plugin-sendblue && npm install --omit=dev'
+
+TOKEN=$(docker exec paperclip-t8tg-paperclip-1 cat /paperclip/instances/default/secrets/board-api-key-sendblue-ops)
+
+docker exec paperclip-t8tg-paperclip-1 \
+  paperclipai plugin install --local /paperclip/plugins/paperclip-plugin-sendblue \
+  --api-base http://127.0.0.1:3100 --api-key "$TOKEN"
+
+# Equivalent API:
+# POST /api/plugins/install
+# {"packageName":"/paperclip/plugins/paperclip-plugin-sendblue","isLocalPath":true}
+# Authorization: Bearer <board-api-key>
+
+docker exec paperclip-t8tg-paperclip-1 \
+  paperclipai plugin enable jewell-labs.sendblue \
+  --api-base http://127.0.0.1:3100 --api-key "$TOKEN"
+```
+
+### Soft operator config (no SendBlue secrets yet)
+
+```bash
+docker exec paperclip-t8tg-paperclip-1 \
+  paperclipai plugin config:set jewell-labs.sendblue \
+  --api-base http://127.0.0.1:3100 --api-key "$TOKEN" \
+  --payload-json '{"configJson":{"allowlist":[],"emptyMeansDeny":true,"inboundMode":"log_only","notifyOnIssueDone":false}}'
+```
+
+When SendBlue credentials exist, put them in the **company vault** and set `apiKeyRef` / `apiSecretRef` / `webhookSecretRef` / `fromNumber` / allowlist numbers in `configJson` (see package README). Live SMS is out of band of install verification.
+
+### Verify (CLI + API + browser asset)
+
+```bash
+paperclipai plugin list --api-base http://127.0.0.1:3100 --api-key "$TOKEN"
+paperclipai plugin inspect jewell-labs.sendblue --api-base http://127.0.0.1:3100 --api-key "$TOKEN"
+paperclipai plugin health jewell-labs.sendblue --api-base http://127.0.0.1:3100 --api-key "$TOKEN"
+# expect: status=ready, healthy=true
+
+paperclipai plugin tools --api-base http://127.0.0.1:3100 --api-key "$TOKEN" --json
+# expect: 15 tools namespaced jewell-labs.sendblue:*
+
+# UI bundle (settings page) served by core host:
+curl -sS -o /dev/null -w "%{http_code}\n" \
+  http://127.0.0.1:3100/_plugins/<plugin-uuid>/ui/index.js
+# expect: 200; body contains SendBlueSettingsPage
+```
+
+Webhook URL after public HTTPS (when secrets are live):
+
+```text
+https://paperclip-t8tg.srv1829398.hstgr.cloud/api/plugins/jewell-labs.sendblue/webhooks/inbound
+```
+
+### Reinstall / upgrade local path
+
+Re-rsync `dist/` + sources, re-run `npm install --omit=dev` under `NODE_ENV=development` in the staged dir, then:
+
+```bash
+paperclipai plugin upgrade jewell-labs.sendblue --api-base http://127.0.0.1:3100 --api-key "$TOKEN"
+# or disable → enable after file changes (local-path watcher also reloads dist/)
+```
+
+### Troubleshooting
+
+| Symptom | Fix |
+| --- | --- |
+| `403 Board access required` | Mint board API key (above); pass `--api-key` |
+| `Invalid origin` on sign-in | Use `Origin` = `PAPERCLIP_PUBLIC_URL` (http host, not localhost) |
+| Worker: `Cannot find package '@paperclipai/plugin-sdk'` | `NODE_ENV=development npm install --omit=dev` in staged package; ensure SDK is in `dependencies` |
+| Dashboard npm dialog fails | Expected — use CLI/API local-path, not packageName |
+| Config `422 secret references disabled` | Use CLI `config:set --payload-json '{"configJson":{...}}'` without vault refs until company-scoped secrets land |
+
+Package-level tools, allowlist, and API surface: [plugins/paperclip-plugin-sendblue/README.md](./plugins/paperclip-plugin-sendblue/README.md).
 
 ---
 
@@ -295,13 +423,13 @@ Document each item here when completed:
 - [x] Claude auth + smoke
 - [x] Tie Onboarding project to `tyler-jewell/jewell-labs` (primary git workspace + clone)
 - [x] Platform Lead verified repo via JEW-6 (done)
-- [ ] Board API key for automation (storage location)
+- [x] Board API key for automation (instance file `/paperclip/instances/default/secrets/board-api-key-sendblue-ops` — never git)
 - [ ] Push local README SSoT to GitHub `main` (remote still has harness experiments)
 - [ ] Model gateway (llm-provider) + reverse tunnel
 - [ ] Hire/use `grok_local` agent (CLI ready; model id `grok-4.5`)
 - [ ] Environments / SSH / sandboxes (if needed)
-- [x] Messaging plugin package (SendBlue) developed + unit-tested in-repo — **not** installed on Paperclip yet
-- [ ] Messaging (SendBlue) live install on VPS
+- [x] Messaging plugin package (SendBlue) developed + unit-tested in-repo
+- [x] Messaging (SendBlue) live install on VPS via local-path (no npm)
 - [ ] Keep `maxConcurrentRuns=1` on this VPS unless upgraded
 
 ---
@@ -315,4 +443,5 @@ Document each item here when completed:
 | 2026-07-16 | Grok login complete (grok.com); models `grok-4.5` (default), `grok-composer-2.5-fast`. Smoke: `CLAUDE_OK` + `GROK_OK` as node/`HOME=/paperclip` |
 | 2026-07-16 | Added `plugins/paperclip-plugin-sendblue` — community-shaped Paperclip plugin (tools, webhooks, allowlist, notify). 68 unit tests + quality gate. **Not** installed on VPS yet |
 | 2026-07-16 | Plugin quality: ESLint strict type-aware, knip deadcode, `npm run check`, release/version sync, CHANGELOG shipped for npm consumers |
+| 2026-07-16 | Installed SendBlue plugin on live Paperclip via **local-path** (`jewell-labs.sendblue` ready); board key + stage path + ops procedure documented here (no npm) |
 | 2026-07-16 | Company Jewell Labs (`d2a2da0c-…`); project Onboarding wired to `github.com/tyler-jewell/jewell-labs` primary workspace; clone + GitHub PAT secret; agents cwd set; JEW-6 Platform Lead explained repo. Capped `maxConcurrentRuns=1` after load~50 OOM/SSH lock |

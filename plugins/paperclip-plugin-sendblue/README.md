@@ -4,7 +4,7 @@ SendBlue (iMessage / SMS / RCS) connector plugin for [Paperclip](https://github.
 
 Outbound agent tools, inbound webhooks, E.164 allowlists, and board event notifications. Issues remain the system of record.
 
-**Status:** developed and contract-tested **in-repo only**. Not installed into a live Paperclip instance yet. Safe to review with the full quality gate (no SendBlue network required).
+**Status:** installed on Jewell Labs Paperclip via **local-path** (plugin key `jewell-labs.sendblue`, status ready). No npm registry publish required. Full ops procedure is in the monorepo root **`README.md`** (SSoT).
 
 ## Features
 
@@ -20,7 +20,7 @@ Outbound agent tools, inbound webhooks, E.164 allowlists, and board event notifi
 
 Do **not** install into production Paperclip until you have run the local suite and reviewed config.
 
-### Local path (dev)
+### Local path (production path for this repo)
 
 ```bash
 cd plugins/paperclip-plugin-sendblue
@@ -28,7 +28,16 @@ npm install
 npm run check    # lint + typecheck + deadcode + test + build
 ```
 
-Then register with Paperclip using `localPath` pointing at this package (or publish to npm and use `packageName`).
+Install into Paperclip with **core** local-path only (see monorepo root `README.md`):
+
+```bash
+# package must be readable inside the container; runtime deps must be installed
+# (NODE_ENV=production skips peer-only installs — keep SDK in dependencies)
+paperclipai plugin install --local /paperclip/plugins/paperclip-plugin-sendblue \
+  --api-base http://127.0.0.1:3100 --api-key "$BOARD_API_KEY"
+```
+
+Helper: `scripts/stage-and-install.sh` (run on VPS host after rsync).
 
 ### Package identity
 
