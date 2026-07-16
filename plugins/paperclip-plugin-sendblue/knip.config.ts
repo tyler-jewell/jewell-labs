@@ -10,6 +10,7 @@ const config: KnipConfig = {
   entry: [
     "src/worker.ts",
     "src/manifest.ts",
+    "src/index.ts",
     "src/ui/index.tsx",
     "scripts/*.{js,mjs}",
   ],

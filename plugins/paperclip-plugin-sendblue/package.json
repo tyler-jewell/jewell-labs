@@ -38,6 +38,7 @@
   },
   "files": [
     "dist/",
+    "AGENTS.md",
     "README.md",
     "CHANGELOG.md",
     "LICENSE"

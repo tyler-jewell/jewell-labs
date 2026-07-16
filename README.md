@@ -374,6 +374,15 @@ curl -sS -o /dev/null -w "%{http_code}\n" \
 # expect: 200; body contains SendBlueSettingsPage
 ```
 
+Settings UI (board, after login):
+
+```text
+https://paperclip-t8tg.srv1829398.hstgr.cloud/JEW/company/settings/instance/plugins/<plugin-uuid>
+# or: Settings → Instance settings → Plugins → SendBlue (iMessage/SMS) → Configure
+```
+
+The custom settings page **loads/saves** instance config (allowlist, from/notify numbers, inbound mode, notify toggles) and exposes an **API console** with **Run test** for every core SendBlue tool. Soft config saves without vault refs. On this host, `POST …/config` with `companyId` currently 422s (`secret references disabled`); the UI posts instance-scoped config only. Live API tests need credentials once company-scoped vault refs work (or plain keys via CLI for ops).
+
 Webhook URL after public HTTPS (when secrets are live):
 
 ```text

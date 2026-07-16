@@ -1,138 +1,206 @@
-import { useState } from "react";
-
 /**
  * Settings surface for SendBlue.
  * Host mounts this as settingsPage exportName: SendBlueSettingsPage.
- * Full secret_ref pickers are host-dependent; document vault keys in README.
  */
-export function SendBlueSettingsPage() {
-  const [allowlist, setAllowlist] = useState("");
-  const [notifyNumber, setNotifyNumber] = useState("");
-  const [fromNumber, setFromNumber] = useState("");
-  const [defaultCompanyId, setDefaultCompanyId] = useState("");
-  const [inboundMode, setInboundMode] = useState("create_issue");
-  const [notifyDone, setNotifyDone] = useState(true);
-  const [notifyCreated, setNotifyCreated] = useState(false);
-  const [notifyApproval, setNotifyApproval] = useState(true);
-  const [notifyAgentError, setNotifyAgentError] = useState(true);
+
+import { useCallback, useMemo, useState, type SyntheticEvent } from "react";
+import {
+  usePluginAction,
+  usePluginData,
+  usePluginToast,
+  type PluginSettingsPageProps,
+} from "@paperclipai/plugin-sdk/ui";
+import { PLUGIN_ID, PLUGIN_VERSION } from "../constants.js";
+import type { ToolName } from "../tools.js";
+import { ApiConsole } from "./api-console.js";
+import type { TestResult } from "./components.js";
+import { inboundWebhookPath, type SettingsFormState } from "./form-model.js";
+import { buildTestParams } from "./api-test-defs.js";
+import { getErrorMessage } from "./host-fetch.js";
+import { SettingsForm } from "./settings-form.js";
+import { muted, row, stack } from "./styles.js";
+import { useSettingsConfig } from "./use-settings-config.js";
+
+type SettingsOverview = {
+  pluginId: string;
+  version: string;
+  credentialsConfigured: boolean;
+  hasFromNumber: boolean;
+  allowlistCount: number;
+  emptyMeansDeny: boolean;
+  inboundMode: string;
+  notifyNumber?: string;
+  warnings: string[];
+  config: Record<string, unknown>;
+};
+
+export function SendBlueSettingsPage({ context }: PluginSettingsPageProps) {
+  const toast = usePluginToast();
+  const companyId = context.companyId;
+  const {
+    form,
+    setForm,
+    loading,
+    saving,
+    error: configError,
+    save,
+    reload,
+  } = useSettingsConfig();
+
+  const overview = usePluginData<SettingsOverview>(
+    "settings-overview",
+    companyId ? { companyId } : {},
+  );
+  const runApiTest = usePluginAction("test_api");
+
+  const [savedMessage, setSavedMessage] = useState<string | null>(null);
+  const [runningApi, setRunningApi] = useState<ToolName | null>(null);
+  const [results, setResults] = useState<Partial<Record<ToolName, TestResult>>>(
+    {},
+  );
+  const [showWrites, setShowWrites] = useState(false);
+
+  const setField = useCallback(
+    <K extends keyof SettingsFormState>(key: K, value: SettingsFormState[K]) => {
+      setForm((current) => ({ ...current, [key]: value }));
+    },
+    [setForm],
+  );
+
+  const testDefaults = useMemo(() => {
+    const firstAllowlisted =
+      form.allowlistText.split(/[\n,]+/)[0]?.trim() ?? "";
+    return {
+      number: form.notifyNumber !== "" ? form.notifyNumber : firstAllowlisted,
+      from_number: form.fromNumber,
+      content: "SendBlue console test",
+    };
+  }, [form.allowlistText, form.fromNumber, form.notifyNumber]);
+
+  const webhookUrlHint = useMemo(() => {
+    if (typeof window !== "undefined" && window.location.origin) {
+      return `${window.location.origin}${inboundWebhookPath()}`;
+    }
+    return `https://<host>${inboundWebhookPath()}`;
+  }, []);
+
+  async function onSubmit(event: SyntheticEvent<HTMLFormElement>) {
+    event.preventDefault();
+    try {
+      await save(form);
+      setSavedMessage("Saved — worker will pick up config on next call");
+      window.setTimeout(() => setSavedMessage(null), 2500);
+      overview.refresh();
+      toast({
+        title: "SendBlue settings saved",
+        body: "Config written. Run a test below to verify credentials take effect.",
+        tone: "success",
+      });
+    } catch (err) {
+      toast({
+        title: "Save failed",
+        body: getErrorMessage(err),
+        tone: "error",
+      });
+    }
+  }
+
+  async function handleRunTest(name: ToolName, fields: Record<string, string>) {
+    setRunningApi(name);
+    const at = new Date().toISOString();
+    try {
+      const params = buildTestParams(name, fields);
+      const data = await runApiTest({
+        api: name,
+        params,
+        companyId: companyId ?? undefined,
+      });
+      setResults((c) => ({ ...c, [name]: { ok: true, at, name, data } }));
+      toast({ title: `${name} OK`, tone: "success" });
+    } catch (err) {
+      const message = getErrorMessage(err);
+      setResults((c) => ({
+        ...c,
+        [name]: { ok: false, at, name, error: message },
+      }));
+      toast({ title: `${name} failed`, body: message, tone: "error" });
+    } finally {
+      setRunningApi(null);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div style={{ ...muted, padding: 16 }}>Loading SendBlue settings…</div>
+    );
+  }
 
   return (
     <div
       style={{
         padding: 16,
-        maxWidth: 640,
+        maxWidth: 820,
         fontFamily: "system-ui, sans-serif",
+        ...stack,
       }}
     >
-      <h2 style={{ marginTop: 0 }}>SendBlue</h2>
-      <p style={{ color: "#666", fontSize: 14 }}>
-        Bind company secrets{" "}
-        <code>sendblue-api-key</code>, <code>sendblue-api-secret</code>,{" "}
-        <code>sendblue-webhook-secret</code> in the Paperclip vault, then set
-        config fields <code>apiKeyRef</code> / <code>apiSecretRef</code> /{" "}
-        <code>webhookSecretRef</code> to those vault keys. Allowlist every phone
-        that may send or receive.
-      </p>
+      <div style={stack}>
+        <h2 style={{ margin: 0 }}>SendBlue</h2>
+        <p style={muted}>
+          Configure the iMessage/SMS connector. Vault key <em>names</em> and
+          operational settings (allowlist, notify, inbound). After save, use{" "}
+          <strong>Run test</strong> on the APIs below.
+        </p>
+        <div style={row}>
+          <span style={{ fontSize: 12, opacity: 0.75 }}>
+            {PLUGIN_ID}@{PLUGIN_VERSION}
+          </span>
+          {companyId ? (
+            <span style={{ fontSize: 12, opacity: 0.75 }}>
+              company {companyId.slice(0, 8)}…
+            </span>
+          ) : (
+            <span style={{ fontSize: 12, color: "var(--destructive, #b45309)" }}>
+              No company selected — instance-scoped save.
+            </span>
+          )}
+          {overview.data ? (
+            <span style={{ fontSize: 12, opacity: 0.75 }}>
+              {overview.data.credentialsConfigured
+                ? "credentials ready"
+                : "credentials missing"}
+              {" · "}
+              allowlist {overview.data.allowlistCount}
+              {" · "}
+              inbound {overview.data.inboundMode}
+            </span>
+          ) : null}
+        </div>
+      </div>
 
-      <label style={{ display: "block", marginBottom: 12 }}>
-        From number (E.164 SendBlue line)
-        <input
-          value={fromNumber}
-          onChange={(e) => setFromNumber(e.target.value)}
-          placeholder="+1645…"
-          style={{ display: "block", width: "100%", marginTop: 4 }}
-        />
-      </label>
+      <SettingsForm
+        form={form}
+        setField={setField}
+        companyId={companyId}
+        webhookUrlHint={webhookUrlHint}
+        configError={configError}
+        warnings={overview.data?.warnings ?? []}
+        saving={saving}
+        savedMessage={savedMessage}
+        onSubmit={onSubmit}
+        onReload={() => {
+          void reload().then(() => overview.refresh());
+        }}
+      />
 
-      <label style={{ display: "block", marginBottom: 12 }}>
-        Notify number (E.164, must be on allowlist)
-        <input
-          value={notifyNumber}
-          onChange={(e) => setNotifyNumber(e.target.value)}
-          placeholder="+1…"
-          style={{ display: "block", width: "100%", marginTop: 4 }}
-        />
-      </label>
-
-      <label style={{ display: "block", marginBottom: 12 }}>
-        Allowlist (comma or newline separated E.164)
-        <textarea
-          value={allowlist}
-          onChange={(e) => setAllowlist(e.target.value)}
-          rows={4}
-          style={{ display: "block", width: "100%", marginTop: 4 }}
-        />
-      </label>
-
-      <label style={{ display: "block", marginBottom: 12 }}>
-        Default company ID (inbound issue creation)
-        <input
-          value={defaultCompanyId}
-          onChange={(e) => setDefaultCompanyId(e.target.value)}
-          placeholder="uuid"
-          style={{ display: "block", width: "100%", marginTop: 4 }}
-        />
-      </label>
-
-      <label style={{ display: "block", marginBottom: 12 }}>
-        Inbound mode
-        <select
-          value={inboundMode}
-          onChange={(e) => setInboundMode(e.target.value)}
-          style={{ display: "block", width: "100%", marginTop: 4 }}
-        >
-          <option value="create_issue">create_issue</option>
-          <option value="log_only">log_only</option>
-          <option value="ignore">ignore</option>
-        </select>
-      </label>
-
-      <fieldset
-        style={{ border: "1px solid #ddd", padding: 12, marginBottom: 12 }}
-      >
-        <legend>Notify on events</legend>
-        <label style={{ display: "block" }}>
-          <input
-            type="checkbox"
-            checked={notifyDone}
-            onChange={(e) => setNotifyDone(e.target.checked)}
-          />{" "}
-          Issue done
-        </label>
-        <label style={{ display: "block" }}>
-          <input
-            type="checkbox"
-            checked={notifyCreated}
-            onChange={(e) => setNotifyCreated(e.target.checked)}
-          />{" "}
-          Issue created
-        </label>
-        <label style={{ display: "block" }}>
-          <input
-            type="checkbox"
-            checked={notifyApproval}
-            onChange={(e) => setNotifyApproval(e.target.checked)}
-          />{" "}
-          Approval requested
-        </label>
-        <label style={{ display: "block" }}>
-          <input
-            type="checkbox"
-            checked={notifyAgentError}
-            onChange={(e) => setNotifyAgentError(e.target.checked)}
-          />{" "}
-          Agent run failed
-        </label>
-      </fieldset>
-
-      <p style={{ fontSize: 13, color: "#444" }}>
-        After install, point SendBlue{" "}
-        <code>receive</code> webhook at:
-        <br />
-        <code>
-          https://&lt;host&gt;/api/plugins/jewell-labs.sendblue/webhooks/inbound
-        </code>
-      </p>
+      <ApiConsole
+        showWrites={showWrites}
+        onShowWrites={setShowWrites}
+        testDefaults={testDefaults}
+        runningApi={runningApi}
+        results={results}
+        onRun={(name, fields) => void handleRunTest(name, fields)}
+      />
     </div>
   );
 }

@@ -26,11 +26,13 @@ This repo runs a **Paperclip agent-company** on an in-house **OpenAI-compatible 
 3. **No Hermes.** Not adopted — do not install, run, or route agents through Hermes (`hermes_local`, `hermes_gateway`).
 4. **SendBlue / messaging:** agent-native skills (`skills/sendblue`, Paperclip setup scripts) — not a monorepo poller daemon.
 5. **llm-provider package:** also read `llm-provider/AGENTS.md`. Package skills live under **`llm-provider/.grok/skills/`** only.
+6. **SendBlue plugin package:** also read `plugins/paperclip-plugin-sendblue/AGENTS.md` (≤300 lines/file, develop/test/release).
 
 ## Skills
 
 | Location | Skills |
 | --- | --- |
 | `llm-provider/.grok/skills/` | `add-provider`, `drive-interactive-cli`, `paperclip-admin`, `tune-local-llm` |
+| `plugins/paperclip-plugin-sendblue/.grok/skills/` | `plugin-configuration` (interactive SendBlue setup + dashboard Run test) |
 
 When adding **Grok project skills**, put them under the relevant package’s **`.grok/skills/`**, never `.claude/skills/`.

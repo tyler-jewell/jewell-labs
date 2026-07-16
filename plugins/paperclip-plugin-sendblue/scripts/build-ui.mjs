@@ -14,7 +14,12 @@ await esbuild.build({
   format: "esm",
   platform: "browser",
   jsx: "automatic",
-  external: ["react", "react-dom", "react/jsx-runtime"],
+  external: [
+    "react",
+    "react-dom",
+    "react/jsx-runtime",
+    "@paperclipai/plugin-sdk/ui",
+  ],
   logLevel: "info",
 });
 

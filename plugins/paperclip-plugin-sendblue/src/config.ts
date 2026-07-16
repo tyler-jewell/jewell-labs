@@ -25,12 +25,6 @@ export type SendBluePluginConfig = {
   notifyNumber?: string;
   /** How inbound SMS/iMessage is handled on the board. */
   inboundMode: InboundMode;
-  /** Company UUID for inbound issue creation / comments. */
-  defaultCompanyId?: string;
-  /** Optional project UUID for created issues. */
-  defaultProjectId?: string;
-  /** Optional agent UUID to assign + wake on inbound. */
-  defaultAssigneeAgentId?: string;
 };
 
 export type ConfigValidation =
@@ -78,24 +72,18 @@ export function validateConfig(
   const fromNumberRaw = asStr(r.fromNumber) ?? asStr(r.from_number);
   const webhookSecret = asStr(r.webhookSecret) ?? asStr(r.webhook_secret);
   const notifyNumberRaw = asStr(r.notifyNumber) ?? asStr(r.notify_number);
-  const defaultCompanyId =
-    asStr(r.defaultCompanyId) ?? asStr(r.default_company_id);
-  const defaultProjectId =
-    asStr(r.defaultProjectId) ?? asStr(r.default_project_id);
-  const defaultAssigneeAgentId =
-    asStr(r.defaultAssigneeAgentId) ?? asStr(r.default_assignee_agent_id);
 
   const hasPlainCreds = Boolean(apiKey && apiSecret);
   const hasSecretRefs = Boolean(apiKeyRef && apiSecretRef);
   const hasCreds = hasPlainCreds || hasSecretRefs;
   if (requireCredentials && !hasCreds) {
     errors.push(
-      "credentials required: set apiKey+apiSecret or apiKeyRef+apiSecretRef (vault)",
+      "credentials required: resolve vault secrets sendblue-api-key + sendblue-api-secret (or plain apiKey/apiSecret for tests)",
     );
   }
   if (!requireCredentials && !hasCreds) {
     warnings.push(
-      "no SendBlue credentials configured yet (apiKey/apiSecret or secret refs)",
+      "no SendBlue credentials yet — provision company vault secrets sendblue-api-key / sendblue-api-secret / sendblue-webhook-secret",
     );
   }
 
@@ -142,11 +130,6 @@ export function validateConfig(
   }
 
   const inboundMode = asInboundMode(r.inboundMode ?? r.inbound_mode);
-  if (inboundMode === "create_issue" && !defaultCompanyId) {
-    warnings.push(
-      "inboundMode=create_issue but defaultCompanyId unset — inbound issues cannot be created until configured",
-    );
-  }
 
   if (errors.length) {
     return { ok: false, errors, warnings };
@@ -165,15 +148,13 @@ export function validateConfig(
       webhookSecret,
       allowlist,
       emptyMeansDeny,
-      notifyOnIssueDone: asBool(r.notifyOnIssueDone, true),
+      // Off by default: agent conversation SMS reply is enough; optional board notify.
+      notifyOnIssueDone: asBool(r.notifyOnIssueDone, false),
       notifyOnIssueCreated: asBool(r.notifyOnIssueCreated, false),
       notifyOnApprovalCreated: asBool(r.notifyOnApprovalCreated, true),
       notifyOnAgentError: asBool(r.notifyOnAgentError, true),
       notifyNumber,
       inboundMode,
-      defaultCompanyId,
-      defaultProjectId,
-      defaultAssigneeAgentId,
     },
   };
 }

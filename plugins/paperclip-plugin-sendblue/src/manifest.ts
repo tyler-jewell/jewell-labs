@@ -5,7 +5,9 @@ import {
   PLUGIN_VERSION,
   WEBHOOK_ENDPOINT_KEYS,
 } from "./constants.js";
-import { TOOL_NAMES, toolParameterSchemas } from "./tools.js";
+import { TOOL_META } from "./tools/meta.js";
+import { TOOL_NAMES } from "./tools/names.js";
+import { toolParameterSchemas } from "./tools/schemas.js";
 
 /** Manifest may include webhooks on hosts that support webhooks.receive. */
 const manifest = {
@@ -53,11 +55,8 @@ const manifest = {
   ],
   tools: TOOL_NAMES.map((name) => ({
     name,
-    displayName: name
-      .split("_")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" "),
-    description: `SendBlue ${name.replace(/_/g, " ")}`,
+    displayName: TOOL_META[name].displayName,
+    description: TOOL_META[name].description,
     parametersSchema: toolParameterSchemas[name],
   })),
   ui: {

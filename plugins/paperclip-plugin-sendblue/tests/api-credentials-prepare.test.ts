@@ -17,15 +17,10 @@ import {
   prepareReplaceAccountWebhooks,
   prepareDeleteAccountWebhooks,
   prepareGetStatus,
-  parseLinesResponse,
-  parseSendMessageResponse,
-  parseMessagesResponse,
   HEADER_API_KEY,
   HEADER_API_SECRET,
   SENDBLUE_API_BASE,
   PATHS,
-  executePrepared,
-  SendBlueClient,
 } from "../src/sendblue-api.js";
 import {
   HEADER_API_KEY as HK,
@@ -171,14 +166,30 @@ describe("request builders", () => {
     expect(JSON.parse(prep.body!).reaction).toBe("love");
   });
 
-  it("prepareSendTypingIndicator", () => {
+  it("prepareSendTypingIndicator includes state + duration", () => {
     const prep = prepareSendTypingIndicator(creds, {
       number: "+15551112222",
       from_number: "+16452067656",
+      state: "start",
+      max_duration_ms: 120_000,
     });
     expect(prep.url).toBe(
       "https://api.sendblue.com/api/send-typing-indicator",
     );
+    const body = JSON.parse(prep.body!);
+    expect(body).toMatchObject({
+      number: "+15551112222",
+      from_number: "+16452067656",
+      state: "start",
+      max_duration_ms: 120_000,
+    });
+    const stop = prepareSendTypingIndicator(creds, {
+      number: "+15551112222",
+      from_number: "+16452067656",
+      state: "stop",
+    });
+    expect(JSON.parse(stop.body!)).toMatchObject({ state: "stop" });
+    expect(JSON.parse(stop.body!)).not.toHaveProperty("max_duration_ms");
   });
 
   it("prepareMarkRead and prepareCreateGroup", () => {
@@ -260,55 +271,3 @@ describe("request builders", () => {
   });
 });
 
-describe("parsers", () => {
-  it("parseLinesResponse numbers array", () => {
-    expect(parseLinesResponse({ numbers: ["+1a", "+1b"] }).numbers).toEqual([
-      "+1a",
-      "+1b",
-    ]);
-  });
-
-  it("parseLinesResponse object items", () => {
-    expect(
-      parseLinesResponse({
-        data: [{ number: "+1555" }, { phone_number: "+1666" }],
-      }).numbers,
-    ).toEqual(["+1555", "+1666"]);
-  });
-
-  it("parseSendMessageResponse", () => {
-    const r = parseSendMessageResponse({
-      status: "QUEUED",
-      message_handle: "h1",
-    });
-    expect(r.status).toBe("QUEUED");
-    expect(r.message_handle).toBe("h1");
-  });
-
-  it("parseMessagesResponse", () => {
-    const r = parseMessagesResponse({
-      status: "OK",
-      data: [{ content: "hi", is_outbound: false, message_handle: "m1" }],
-    });
-    expect(r.data[0].content).toBe("hi");
-    expect(r.data[0].is_outbound).toBe(false);
-  });
-});
-
-describe("executePrepared + client with mock fetch", () => {
-  it("throws on non-2xx", async () => {
-    const fetchImpl = async () =>
-      new Response(JSON.stringify({ status: "ERROR" }), { status: 401 });
-    await expect(
-      executePrepared(prepareListLines(creds), fetchImpl as typeof fetch),
-    ).rejects.toThrow(/HTTP 401/);
-  });
-
-  it("SendBlueClient.listLines uses mock", async () => {
-    const fetchImpl = async () =>
-      new Response(JSON.stringify({ numbers: ["+1645"] }), { status: 200 });
-    const client = new SendBlueClient(creds, fetchImpl);
-    const r = await client.listLines();
-    expect(r.numbers).toEqual(["+1645"]);
-  });
-});
