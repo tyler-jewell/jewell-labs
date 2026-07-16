@@ -251,8 +251,11 @@ Host still needs `@sendblue/cli` + credentials (`sendblue whoami`).
 
 ## GitHub / git wiring (Flag Seeker, since 2026-07-16)
 
-- Repo: private **https://github.com/tyler-jewell/flag-seeker** — primary workspace of project
-  "Onboarding" (`f8ac1af2-…`), workspace `6299caaa-…`, cwd `…/<project>/flag-seeker`, ref `main`.
+- Repo: private **https://github.com/Flag-Seeker/flagseeker** (the real product repo — same
+  remote as `~/Apps/flagseeker` on the Mac) — primary workspace of project "Onboarding"
+  (`f8ac1af2-…`), workspace `6299caaa-…`, cwd `…/<project>/flagseeker`, ref `main`.
+  (`tyler-jewell/flag-seeker` was a temporary stand-in built from the VPS scratch app;
+  superseded 2026-07-16.)
 - Auth, per Paperclip docs' recommended pattern: PAT stored as encrypted company secret
   **`github-pat`** (`0223fa81-…`), bound as `GH_TOKEN` + `GITHUB_TOKEN` `secret_ref`s in the
   **project env** (injected into every issue run); plus a container-side credential store at
