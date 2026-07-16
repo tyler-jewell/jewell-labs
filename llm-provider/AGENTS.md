@@ -1,8 +1,16 @@
 # AGENTS.md — operating rules for agents in this repo
 
+## Grok harness contract (required)
+
+- **Standard:** follow `~/.grok/standards/GROK_HARNESS_v1.md` (latest Grok Build layout).
+- **Canonical harness root:** `.grok/` only. Do **not** add or use project `.claude/skills`, `.claude/agents`, `.cursor/skills`, or `.cursor/agents`.
+- **Grade:** after any change under `.grok/` or this file, run `/grok-harness-grade` and leave the tree at grade **A** (or document an explicit waiver in the grade report).
+- **Rules budget:** keep this file short; put long procedures in `.grok/skills/*/SKILL.md` or `docs/`, not here.
+- **Scaffold:** new skills/agents/personas via `/agent-creator` or `/create-skill`; match bundled style under `~/.grok/bundled/`.
+
 This is the **llm-provider** gateway: an OpenAI-compatible endpoint on `:4141` unifying local
-llama.cpp/ollama + grok + Claude. Read `README.md` for the architecture and `CLAUDE.md`-style
-memory for context. Two rules below are load-bearing — do not violate them.
+llama.cpp/ollama + grok + Claude. Read `README.md` for the architecture.
+
 
 ## 1. Never modify Paperclip core
 

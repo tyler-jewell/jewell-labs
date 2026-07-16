@@ -5,10 +5,9 @@ description: >-
   full confidence — SSH in (key auth), authenticate to the board API, and run any admin task
   via the `paperclipai` CLI or REST API: manage adapters/model routing, hire/configure/pause
   agents, set budgets, inspect costs & activity, edit deployment config/secrets, back up the
-  DB, and wire/route agents to the llm-provider gateway via the custom gateway_openai adapter
-  (local, LAN, or over the reverse SSH tunnel) with short-lived rotating tokens. Use for ANY
-  Paperclip admin, operations, debugging, integration, or configuration work. Always check the
-  latest llms.txt before changing the system.
+  DB, and route agents at the llm-provider OAuth gateway. Use for ANY Paperclip admin,
+  operations, debugging, or configuration work. Always check the latest llms.txt before
+  changing the system.
 ---
 
 # Paperclip admin (`paperclip-t8tg` on `root@2.25.132.76`)
@@ -83,7 +82,7 @@ returns `403 Board access required`. For board work use **REST with the Bearer b
 
 **A) REST (preferred for board automation)** — the helper injects the board key, base URL, and Origin:
 ```sh
-S=~/Apps/jewell-labs/llm-provider/.claude/skills/paperclip-admin
+S=~/Apps/jewell-labs/llm-provider/.grok/skills/paperclip-admin
 $S/pc-api.sh GET  /api/adapters
 $S/pc-api.sh GET  "/api/companies/$PAPERCLIP_COMPANY/agents"      # $PAPERCLIP_COMPANY preset by the helper
 $S/pc-api.sh POST "/api/companies/05bc506f-ceb7-49b3-b914-e866a9326064/agents" '<json>'
@@ -145,113 +144,31 @@ coding CLI — inner `adapter: claude_local | codex_local`), `http` (webhook to 
 
 **Do not use Hermes** (`hermes_local`, `hermes_gateway`, or any hermes CLI). Canonical model
 routing for this fleet is the in-house **llm-provider** via the custom **`gateway_openai`**
-adapter only — full wiring in **§ llm-provider gateway integration** below.
+adapter only (see `paperclip-integration`).
 
-**Routing agents to the llm-provider gateway (all three providers):** set
+**Routing agents to the llm-provider OAuth gateway (all three providers):** set
 `adapterType: gateway_openai` and point `adapterConfig` at the gateway through the reverse
 tunnel. From the container the gateway is reachable at **`http://172.16.0.1:4141/v1`** (bind
-the tunnel to the docker gateway IP — the container's `127.0.0.1` is NOT the host's). A creds
-bundle is required (`credsFile`, see below). Proven from the container for `claude-*`,
-`grok-*`, and local `qwen3-4b`.
+the tunnel to the docker gateway IP — the container's `127.0.0.1` is NOT the host's). A minted
+gateway key is required (`../../.gateway-key`). Proven from the container for `claude-*`,
+`grok-*`, and local `qwen3-4b`. See the `paperclip-integration` skill for the tunnel/launchd
+wiring and the metered-key removal sequence.
 
-## llm-provider gateway integration (the `gateway_openai` adapter)
-
-The only supported Paperclip→model path. Agents reach the gateway through the custom
-**`gateway_openai`** external adapter (`integrations/paperclip/gateway-adapter/`) whose
-`execute(ctx)` POSTs to `/v1/chat/completions` and streams the reply — direct OpenAI wire, no
-hermes, no agent CLI.
-
-**Where the gateway lives:** only on the Mac (launchd `com.jewell-labs.llm-provider`, port
-4141). It is Mac-bound — Claude uses the macOS Keychain, local models use the M1 Max GPU, grok
-uses `~/.grok` — so it can't run on the Linux VPS; a remote Paperclip reaches *into* the Mac
-over the reverse tunnel (Scenario 3).
-
-**Auth model.** `auth.trust_loopback = true` (default) trusts `127.0.0.1`/`::1` keyless.
-`auth.trust_loopback = false` (**current — the gateway is tunnel-exposed**) requires a token on
-every request, because the reverse tunnel makes VPS traffic look like loopback.
-
-**Tokens are short-lived and rotate — nothing is permanent.** Every mint returns a *bundle*:
-`{ access_token (llmgw-…), refresh_token (llmgwr-…), expires_at }`. The adapter presents the
-access token and, within ~60s of expiry, POSTs the refresh token to `/auth/refresh`, gets a
-fresh bundle, and rewrites the `credsFile` atomically. Refresh **rotates** (the old refresh
-token dies on use). `apiKey`/`apiKeyFile` static keys still work for simple use but never rotate.
-
-### Mint the creds bundle
-
-```sh
-# admin mint (simplest) -> write the bundle to the creds file:
-LLM_PROVIDER_DIR=~/Apps/jewell-labs/llm-provider \
-  ~/Apps/jewell-labs/llm-provider/target/release/llm-provider mint tyler.p.jewell@gmail.com \
-  > ~/Apps/jewell-labs/llm-provider/.gateway-creds.json
-# or headless Google (1h gcloud token) — the response IS the bundle:
-curl -s -X POST localhost:4141/auth/google -H content-type:application/json \
-  -d "{\"id_token\": \"$(gcloud auth print-identity-token)\"}" \
-  > ~/Apps/jewell-labs/llm-provider/.gateway-creds.json
-# or xAI device-code:  llm-provider login-xai
-```
-The local bundle lives at `~/Apps/jewell-labs/llm-provider/.gateway-creds.json` (0600, gitignored).
-
-### Register the adapter (every Paperclip instance)
-
-```sh
-node integrations/paperclip/register-adapter.mjs   # writes $PAPERCLIP_HOME/adapter-plugins.json
-npx paperclipai run                                 # gateway_openai now selectable
-```
-Then set an agent's `adapterType: gateway_openai` + the `adapterConfig` from
-`integrations/paperclip/adapter-config.json`, edited per scenario:
-
-- **Scenario 1 — Local (Paperclip on this Mac):**
-  `{"baseUrl":"http://localhost:4141/v1","model":"grok-4.20-0309-non-reasoning","credsFile":"/Users/studio/Apps/jewell-labs/llm-provider/.gateway-creds.json"}`
-  Verify: `node integrations/paperclip/test-gateway-direct.mjs` → 16 checks pass.
-- **Scenario 2 — LAN (another home machine):** same, but `baseUrl=http://10.0.0.166:4141/v1`
-  (the Mac's LAN IP). Copy the bundle over and point `credsFile` at it. Verify with
-  `GATEWAY_URL=http://10.0.0.166:4141 node …test-gateway-direct.mjs`.
-- **Scenario 3 — Remote (this VPS):** see below. From the container use
-  `baseUrl=http://172.16.0.1:4141/v1` (docker gateway IP, NOT `127.0.0.1`).
-
-### Scenario 3 — Remote (Paperclip on this VPS over the reverse tunnel)
-
-The VPS is a front door, not the host. A reverse SSH tunnel (autossh + launchd, Mac dials the
-VPS) exposes the Mac gateway on the VPS loopback; nothing is public.
-
-```sh
-# one-time (Mac): brew install autossh; ssh-copy-id root@2.25.132.76; ssh root@2.25.132.76 true
-cp deploy/com.jewell-labs.llm-tunnel.plist ~/Library/LaunchAgents/
-launchctl load ~/Library/LaunchAgents/com.jewell-labs.llm-tunnel.plist
-ssh root@2.25.132.76 'curl -s localhost:4141/healthz'   # {"ok":true}
-# push the bundle + adapter to the VPS:
-scp ~/Apps/jewell-labs/llm-provider/.gateway-creds.json root@2.25.132.76:/root/llm-provider-creds.json
-scp -r integrations/paperclip/gateway-adapter root@2.25.132.76:/root/gateway-openai-adapter
-```
-On the VPS register the adapter (point `register-adapter.mjs`'s `PKG_DIR` at
-`/root/gateway-openai-adapter`) and use
-`{"baseUrl":"http://172.16.0.1:4141/v1","model":"grok-4.20-0309-non-reasoning","credsFile":"/root/llm-provider-creds.json"}`.
-The adapter refreshes over the tunnel and rewrites `/root/llm-provider-creds.json` in place near
-expiry — no hourly re-copy. Topology:
-```
-Mac: llm-provider :4141 (trust_loopback=false)
-  ▲ reverse SSH tunnel (autossh + launchd; Mac dials the VPS)
-  │ VPS loopback/172.16.0.1:4141  ⇒  Mac gateway
-VPS container: Paperclip ─▶ http://172.16.0.1:4141/v1  (Bearer <access_token from creds bundle>)
-```
-
-### Refresh & re-provision / troubleshooting
-
-- Tokens rotate automatically (above); re-mint by hand only if a bundle is lost or its 30-day
-  refresh window fully lapses unused — re-run mint, overwrite `.gateway-creds.json`, `scp` it across.
-- **401 everywhere:** `trust_loopback=false` + no/invalid token — check `credsFile` resolves,
-  holds a live bundle, and the access token isn't past `expires_at` with a dead refresh (re-mint).
-- **Remote can't connect:** tunnel down — `cat tunnel.log`, confirm `ssh root@2.25.132.76 true`
-  works non-interactively, reload the tunnel agent.
-- **Local model 404:** the local backend isn't up — `./launch-local.sh` (see `tune-local-llm`).
+**`gateway_openai` is chat-only — not for executable work.** Its `execute` is one prompt →
+streamed text (no shell, no tools, no filesystem). Agents on it cannot clone repos, run tests,
+or edit files: Paperclip gets a text reply, posts "needs a disposition", and moves the issue to
+`blocked`. For code-executing agents use **`claude_local`** (Claude CLI in the container, Max
+OAuth billing, `dangerouslySkipPermissions: true`); the Founding Engineer runs it since
+2026-07-16. Also verify the model exists in `GET /v1/models` first — a missing upstream (e.g.
+`grok-*` gone on 2026-07-16) fails runs instantly with `gateway HTTP 503`.
 
 ## Common admin tasks (recipes)
 
 ```sh
-S=~/Apps/jewell-labs/llm-provider/.claude/skills/paperclip-admin; C=05bc506f-ceb7-49b3-b914-e866a9326064
+S=~/Apps/jewell-labs/llm-provider/.grok/skills/paperclip-admin; C=05bc506f-ceb7-49b3-b914-e866a9326064
 $S/pc-api.sh GET "/api/companies/$C/agents"                       # list agents
 $S/pc-api.sh GET "/api/agents/<id>/configuration"                # redacted agent config (model/adapter)
-$S/pc-api.sh PATCH "/api/agents/<id>" '{"adapterType":"gateway_openai","adapterConfig":{"baseUrl":"http://172.16.0.1:4141/v1","model":"grok-4.5","credsFile":"/root/llm-provider-creds.json"}}'  # switch backend
+$S/pc-api.sh PATCH "/api/agents/<id>" '{"adapterType":"gateway_openai","adapterConfig":{"baseUrl":"http://172.16.0.1:4141/v1","model":"grok-4.5","apiKeyFile":"/root/llm-provider.key"}}'  # switch backend
 $S/pc-api.sh POST "/api/agents/<id>/pause" '{}'                   # pause / resume / terminate
 $S/pc-api.sh GET "/api/companies/$C/costs/summary"               # spend
 $S/pc-api.sh PATCH "/api/agents/<id>/budgets" '{"budgetMonthlyCents":200000}'   # $2,000/mo
@@ -310,6 +227,42 @@ Paperclip is open-source and moves fast; do not trust this snapshot for a mutati
 6. **`terminate` and company `delete` are irreversible**; agent budget exhaustion auto-pauses.
 7. **Secrets** stay in the keychain / encrypted vault — never in files, commits, chat, or logs;
    redact env values in output. Revoke the board key if exposed (`paperclipai token board revoke <id>`).
+
+## SendBlue messaging (any agent)
+
+Messaging is **agent-native** (company skill + CLI/REST on the host) — not a
+long-running Rust messenger. Guide: `docs/SENDBLUE_PAPERCLIP.md`.
+
+**Attach SSoT:** company skill `company/$PAPERCLIP_COMPANY/sendblue` (from monorepo
+`skills/sendblue/SKILL.md`). Do **not** attach GitHub-imported `sendblue-cli` /
+`sendblue-api` / `sendblue-notify` on Hostinger — they resolve `state=missing`.
+
+```sh
+# Creates company skill if needed, attaches sendblue+paperclip, fails unless configured
+$ROOT/tools/paperclip_sendblue_setup.sh <agent-uuid>
+
+# Manual equivalent:
+$S/pc-api.sh POST "/api/agents/<id>/skills/sync" \
+  "{\"desiredSkills\":[\"company/$PAPERCLIP_COMPANY/sendblue\",\"paperclip\"]}"
+# GET skills → every desired entry must be state=configured
+```
+
+Host still needs `@sendblue/cli` + credentials (`sendblue whoami`).
+
+## GitHub / git wiring (Flag Seeker, since 2026-07-16)
+
+- Repo: private **https://github.com/tyler-jewell/flag-seeker** — primary workspace of project
+  "Onboarding" (`f8ac1af2-…`), workspace `6299caaa-…`, cwd `…/<project>/flag-seeker`, ref `main`.
+- Auth, per Paperclip docs' recommended pattern: PAT stored as encrypted company secret
+  **`github-pat`** (`0223fa81-…`), bound as `GH_TOKEN` + `GITHUB_TOKEN` `secret_ref`s in the
+  **project env** (injected into every issue run); plus a container-side credential store at
+  `/paperclip/.git-credentials` (HOME=`/paperclip`, survives redeploys) so the server's managed
+  `git clone` and raw `git push/fetch` authenticate.
+- **Rotate the PAT**: the current one is an all-scopes classic token on `tyler-jewell`
+  (admin:org, delete_repo, …). Replace with a fine-grained repo-scoped PAT: update the secret
+  value via `PATCH /api/companies/$C/secrets/<id>` and rewrite `.git-credentials`.
+- Proven end-to-end: FLA-10 (wipe workspace → clone → `npm test`) ran to `done` on the
+  `claude_local` engineer; 12/12 vitest tests passed.
 
 ## Files in this skill
 - `pc-api.sh` — board REST helper (keychain board key, base URL, Origin). **Primary tool.**
