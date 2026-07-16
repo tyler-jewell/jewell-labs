@@ -14,8 +14,13 @@ const config: KnipConfig = {
     "scripts/*.{js,mjs}",
   ],
   project: ["src/**/*.{ts,tsx}", "scripts/**/*.{js,mjs}"],
-  // Peers resolved by Paperclip host; listed so builds typecheck.
-  ignoreDependencies: ["react", "react-dom"],
+  // Peer resolved by Paperclip host; UI imports react only.
+  ignoreDependencies: ["react-dom"],
+  // Suppress noise; peers/aliases are intentional.
+  rules: {
+    unlisted: "error",
+    unresolved: "error",
+  },
   vitest: {
     config: ["vitest.config.ts"],
     entry: ["tests/**/*.{ts,tsx}"],
