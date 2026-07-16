@@ -27,6 +27,10 @@ pub fn grok_auth_file() -> PathBuf {
 pub struct Config {
     pub port: u16,
     pub public_url: String,
+    /// The go-to local model. It is the gateway's first point of contact: a request with no
+    /// `model` (or an empty one) is served here before any cloud model. Callers still address
+    /// any model by name explicitly (that is honored as-is); cloud is for deliberate escalation.
+    pub default_model: String,
     pub auth: AuthConfig,
     pub providers: Vec<ProviderConfig>,
     pub local_runtime: LocalRuntime,
@@ -97,11 +101,8 @@ fn default_claude_prefix() -> String {
     "claude".into()
 }
 fn default_claude_models() -> Vec<String> {
-    vec![
-        "claude-opus-4-8".into(),
-        "claude-sonnet-5".into(),
-        "claude-haiku-4-5".into(),
-    ]
+    // Advertised claude model ids come from config.toml's claude provider block, not source.
+    vec![]
 }
 
 impl Default for AuthConfig {
@@ -122,6 +123,8 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             port: 4141,
+            // Model choice is config-driven; source carries no model name. config.toml sets it.
+            default_model: String::new(),
             public_url: String::new(),
             auth: AuthConfig::default(),
             providers: vec![

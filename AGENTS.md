@@ -8,34 +8,28 @@
 - **Rules budget:** keep this file short; put long procedures in `.grok/skills/*/SKILL.md` or `docs/`, not here.
 - **Scaffold:** new skills/agents/personas via `/agent-creator` or `/create-skill`; match bundled style under `~/.grok/bundled/`.
 
-Workspace for **agent harnesses** that evaluate language models via **llama.cpp**. Prefer minimal tooling and **local inference**. No Docker-heavy eval stacks or cloud-only judges unless the user asks.
-
+This repo runs a **Paperclip agent-company** on an in-house **OpenAI-compatible model gateway** (`llm-provider`). The custom home-grown harness (`rust-agent/`) and the local eval framework (`evals/`) have been **removed** — we no longer build or maintain our own agent/eval harness. The coding-agent runtime is being standardized on a single external harness (**opencode vs Hermes** comparison in progress).
 
 ## Canonical stack
 
 | Layer | What |
 | --- | --- |
 | **Control plane** | Paperclip (self-hosted VPS) |
-| **Models** | In-house **llm-provider** on this Mac (`:4141`), OAuth allowlist; Paperclip via reverse tunnel + `gateway_openai` |
-| **Not used** | **Hermes** — do not install or route through Hermes |
+| **Model gateway** | In-house **llm-provider** on this Mac (`:4141`), OAuth allowlist; Paperclip reaches it via reverse tunnel. Local Qwen3.6-35B-A3B is the default (`default_model`); cloud (Claude/Grok) is escalation only. |
+| **Coding harness** | Being standardized — **opencode vs Hermes** (see the harness comparison). Until decided, do not add a new custom harness. |
 
 ## Hard rules
 
-1. **No first-party Python** for Jewell agent (`rust-agent/`) or Jewell-owned evals (`evals/**`, first-party `tools/`). Subject datasets may contain Python under test; host `python3` may grade those artifacts only.
-2. **Eval entry points:** Rust (`cargo run --bin eval_catalog`, `eval_compare`, `eval_introspection`) and **curl** against local `llama-server`. Prefer pure Rust graders.
-3. **SendBlue / messaging:** agent-native skills (`skills/sendblue`, Paperclip setup scripts) — not a monorepo poller daemon. See `docs/SENDBLUE_PAPERCLIP.md`.
-4. **llm-provider package:** also read `llm-provider/AGENTS.md`. Package skills live under **`llm-provider/.grok/skills/`** only.
+1. **No custom harness.** Do not reintroduce a home-grown agent/eval harness (the removed `rust-agent/`, `evals/`, `tools/run_agent*`). Standardize on the chosen external harness.
+2. **No hardcoded model/endpoint config.** Models, endpoints, and lists come from central config (`llm-provider/config.toml`, Paperclip adapterConfig), never source. See `llm-provider/.grok/skills/`.
+3. **Hermes:** under evaluation as a harness candidate (previously banned; the ban is on hold pending the opencode-vs-Hermes decision — do not adopt or route production agents through it until that lands).
+4. **SendBlue / messaging:** agent-native skills (`skills/sendblue`, Paperclip setup scripts) — not a monorepo poller daemon. See `docs/SENDBLUE_PAPERCLIP.md`.
+5. **llm-provider package:** also read `llm-provider/AGENTS.md`. Package skills live under **`llm-provider/.grok/skills/`** only.
 
 ## Skills
 
 | Location | Skills |
 | --- | --- |
 | `llm-provider/.grok/skills/` | `add-provider`, `drive-interactive-cli`, `paperclip-admin`, `tune-local-llm` |
-| Repo `skills/` (company) | e.g. `sendblue` — keep; prefer documenting paths clearly |
 
 When adding **Grok project skills**, put them under the relevant package’s **`.grok/skills/`**, never `.claude/skills/`.
-
-## Merge / run signals
-
-- Local serve: `llama-server` OpenAI-compatible `/v1/chat/completions`.
-- Prefer existing Rust eval bins over inventing new harness languages.

@@ -4,18 +4,3 @@
 **/__pycache__/
 **/*.pyc
 node_modules/
-
-# Local session data & eval run artifacts
-data/sessions/
-rust-agent/data/sessions/
-evals/runs/
-
-# Vendored Hermes Agent install (local-only; installed by evals/harness_compare/install_and_compare.sh)
-evals/harness_compare/vendor/
-
-# Large local binaries / scratch experiments at repo root tools/
-tools/run_agent_go
-tools/run_agent_rs_bin
-tools/run_agent_rs/target/
-rust-agent/agents/**/fs/
-evals/catalog/.cache/

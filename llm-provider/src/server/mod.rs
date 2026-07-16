@@ -33,20 +33,39 @@ pub fn router(app: AppState) -> Router {
 
 async fn models_handler(State(app): State<AppState>) -> Response {
     let data = app.registry.all_models(&app.http).await;
-    Json(json!({"object": "list", "data": data})).into_response()
+    // Advertise the central-config default so clients never hardcode a model: the local
+    // model that is the gateway's first point of contact.
+    Json(json!({
+        "object": "list",
+        "data": data,
+        "default_model": app.cfg.default_model,
+    }))
+    .into_response()
 }
 
 async fn chat_handler(State(app): State<AppState>, Json(body): Json<Value>) -> Response {
-    let model = body["model"].as_str().unwrap_or("").to_string();
-    match app.registry.route(&app.http, &model).await {
-        Some(p) => p
-            .chat(&app.http, body)
-            .await
-            .unwrap_or_else(|e| error_response(StatusCode::BAD_GATEWAY, format!("Upstream error: {e}"))),
+    // The local go-to model is the first point of contact: a request with no model (or an
+    // empty one) is served by the configured default. An explicit model name is honored
+    // as-is. There is NO automatic cross-model fallback — escalation is the router agent's
+    // decision (it calls a specific model deliberately), so a failure surfaces to the caller
+    // to reason about rather than being silently retried on another model.
+    let requested = match body["model"].as_str() {
+        Some(m) if !m.is_empty() => m.to_string(),
+        _ => app.cfg.default_model.clone(),
+    };
+
+    match app.registry.route(&app.http, &requested).await {
+        Some(p) => {
+            let mut attempt = body;
+            attempt["model"] = Value::String(requested);
+            p.chat(&app.http, attempt)
+                .await
+                .unwrap_or_else(|e| error_response(StatusCode::BAD_GATEWAY, format!("Upstream error: {e}")))
+        }
         None => client_error(
             StatusCode::NOT_FOUND,
             "model_not_found",
-            format!("Unknown model '{model}'. See GET /v1/models."),
+            format!("Unknown model '{requested}'. See GET /v1/models."),
         ),
     }
 }

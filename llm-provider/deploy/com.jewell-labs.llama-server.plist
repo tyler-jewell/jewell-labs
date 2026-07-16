@@ -14,7 +14,7 @@
     <array>
         <string>/bin/bash</string>
         <string>/Users/studio/Apps/jewell-labs/llm-provider/launch-local.sh</string>
-        <string>qwen3-4b</string>
+        <string>qwen3.6-35b</string>
     </array>
     <key>EnvironmentVariables</key>
     <dict>

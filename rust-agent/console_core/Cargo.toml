@@ -1,9 +1,0 @@
-[package]
-name = "console_core"
-version = "0.1.0"
-edition = "2021"
-description = "Pure Rust UI helpers: SSE parse + markdown (shared by host tests and WASM client)"
-
-[dependencies]
-serde = { version = "1", features = ["derive"] }
-serde_json = "1"

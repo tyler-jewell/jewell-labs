@@ -1,7 +1,0 @@
-/* Compatibility entry: prefer per-module links from app shell.
-   Kept so older bookmarks to /static/app.css still work. */
-@import url("/static/css/base.css");
-@import url("/static/css/sidebar.css");
-@import url("/static/css/main.css");
-@import url("/static/css/chat.css");
-@import url("/static/css/settings.css");

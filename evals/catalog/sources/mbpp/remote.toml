@@ -1,6 +1,0 @@
-# Online-only MBPP coding problems (task bodies from Google Research).
-remote_kind = "mbpp_github"
-url = "https://raw.githubusercontent.com/google-research/google-research/master/mbpp/mbpp.jsonl"
-# Official task_id keys only (content + tests still remote). Prefer shorter problems.
-task_ids = ["2", "8", "11", "14", "17", "19", "21", "24"]
-max_items = 8
